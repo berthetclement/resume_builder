@@ -1,0 +1,17 @@
+[project]
+name = "resume-builder"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "clement", email = "clement.berthet013@gmail.com" }
+]
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+resume-builder = "resume_builder:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

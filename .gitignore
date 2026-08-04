@@ -1,0 +1,10 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+ 
+# --- Environnement virtuel (créé par uv sync) ---
+.venv/
+ 
+# --- Build (créé par uv build) ---
+dist/
+*.egg-info/

@@ -2,9 +2,9 @@
 __pycache__/
 *.py[cod]
  
-# --- Environnement virtuel (créé par uv sync) ---
+# --- Virtual environment ---
 .venv/
  
-# --- Build (créé par uv build) ---
+# --- Build ---
 dist/
 *.egg-info/

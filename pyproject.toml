@@ -15,3 +15,15 @@ resume-builder = "resume_builder:main"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[dependency-groups]
+lint = ["ruff>=0.16.1"]
+type = ["mypy>=2.3.0"]
+test = ["pytest>=9.1.1",
+    "pytest-cov>=7.1.0"]
+
+dev = [{include-group = "lint"},
+    {include-group = "type"},
+    {include-group = "test"},
+    "pre-commit>=4.6.1"]
+    

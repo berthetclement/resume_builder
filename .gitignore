@@ -8,3 +8,7 @@ __pycache__/
 # --- Build ---
 dist/
 *.egg-info/
+
+# --- Other ---
+claude_private/
+CLAUDE.local.md

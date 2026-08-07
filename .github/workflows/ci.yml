@@ -25,5 +25,10 @@ jobs:
       - name: Sync dependencies
         run: uv sync
 
-      - name: Run tox (lint, type, tests)
-        run: uv run tox -p
+      - name: Run full tox matrix (lint, type, tests)
+        if: matrix.os == 'ubuntu-latest'
+        run: uv run tox
+
+      - name: Run tests only
+        if: matrix.os != 'ubuntu-latest'
+        run: uv run tox -e py311,py312,py313

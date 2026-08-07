@@ -15,3 +15,51 @@ resume-builder = "resume_builder:main"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[dependency-groups]
+lint = ["ruff>=0.16.1"]
+type = ["mypy>=2.3.0"]
+test = ["pytest>=9.1.1",
+    "pytest-cov>=7.1.0"]
+
+dev = [
+    {include-group = "lint"},
+    {include-group = "type"},
+    {include-group = "test"},
+    "pre-commit>=4.6.1",
+    "tox>=4.58.0",
+    "tox-uv>=1.36.0",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]  # errors, pyflakes, isort, pyupgrade, bugbear, simplify
+
+[tool.mypy]
+strict = true
+warn_unreachable = true
+enable_error_code = ["explicit-override"]
+
+[tool.tox]
+env_list = ["py311", "py312", "py313", "lint", "type"]
+
+[tool.tox.env_run_base]
+description = "Run tests under {base_python}"
+dependency_groups = ["test"]
+commands = [["pytest"]]
+
+[tool.tox.env.lint]
+description = "Run ruff lint + format checks"
+dependency_groups = ["lint"]
+commands = [
+    ["ruff", "check", "."],
+    ["ruff", "format", "--check", "."],
+]
+
+[tool.tox.env.type]
+description = "Run mypy"
+dependency_groups = ["type"]
+commands = [["mypy", "src"]]

@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - "**"
+
+jobs:
+  ci:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Python and uv
+        uses: astral-sh/setup-uv@1e862dfacbd1d6d858c55d9b792c756523627244
+        with:
+          python-version: "3.13"
+
+      - name: Sync dependencies
+        run: uv sync
+
+      - name: Run full tox matrix (lint, type, tests)
+        if: matrix.os == 'ubuntu-latest'
+        run: uv run tox
+
+      - name: Run tests only
+        if: matrix.os != 'ubuntu-latest'
+        run: uv run tox -e py311,py312,py313

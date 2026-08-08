@@ -9,7 +9,8 @@ Python lib to generate resumes (Markdown -> HTML/PDF).
 - Python version: floor `>=3.11` (`requires-python`), dev on **3.13**.
 - Dev tooling: **ruff** (lint + format), **mypy** (strict), **pytest**, **pre-commit**, **tox** (+ `tox-uv`).
 - Dev dependencies are split into PEP 735 groups in `pyproject.toml`: `lint`, `type`, `test`, and `dev` (which includes all three plus `pre-commit`/`tox`/`tox-uv`). Plain `uv sync` installs everything via the `dev` group.
-- CI: GitHub Actions (`.github/workflows/ci.yml`), matrix over Windows/Linux/macOS, runs `tox -p` (envs: `py311`, `py312`, `py313`, `lint`, `type`) on every push to any branch.
+- CI: GitHub Actions (`.github/workflows/ci.yml`), matrix over Windows/Linux/macOS, on every push to any branch. Ubuntu runs the full tox matrix (`py311`/`py312`/`py313`/`lint`/`type`); Windows/macOS only run the `py311`/`py312`/`py313` test envs (lint/type are OS-independent, no need to repeat them, and macOS Actions minutes are the most constrained).
+- Versioning: **hatch-vcs** derives the package version from git (tags/commit distance), not a hand-edited `version` field. `src/resume_builder/_version.py` is generated automatically on every `uv sync`/build — it's gitignored, never edited by hand, and exposed as `resume_builder.__version__`. Requires an actual git clone (with history) to resolve correctly; a ZIP download or shallow clone won't compute the version properly.
 
 ## Available commands
 
@@ -24,7 +25,7 @@ uv run pre-commit run --all-files          # run ruff check/format + mypy agains
 uv run ruff check .                        # lint
 uv run mypy src                            # type-check (strict)
 uv run pytest                              # run tests
-uv run tox -p                              # run the full matrix (py311/py312/py313/lint/type) locally, same as CI
+uv run tox -p                              # run the full matrix (py311/py312/py313/lint/type) in parallel, local dev only (CI runs it sequentially, see below)
 ```
 
 ## Current state

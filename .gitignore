@@ -8,6 +8,7 @@ __pycache__/
 # --- Build ---
 dist/
 *.egg-info/
+src/resume_builder/_version.py
 
 # --- Other ---
 claude_private/

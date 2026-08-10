@@ -67,11 +67,11 @@ commands = [["pytest"]]
 description = "Run ruff lint + format checks"
 dependency_groups = ["lint"]
 commands = [
-    ["ruff", "check", "."],
-    ["ruff", "format", "--check", "."],
+    ["ruff", "check", "src", "tests"],
+    ["ruff", "format", "--check", "src", "tests"],
 ]
 
 [tool.tox.env.type]
 description = "Run mypy"
 dependency_groups = ["type"]
-commands = [["mypy", "src"]]
+commands = [["mypy", "src", "tests"]]

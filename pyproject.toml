@@ -7,7 +7,10 @@ authors = [
     { name = "clement", email = "clement.berthet013@gmail.com" }
 ]
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "markdown-it-py[plugins]>=4.2.0",
+    "pydantic>=2.13.4",
+]
 
 [project.scripts]
 resume-builder = "resume_builder:main"
@@ -64,11 +67,11 @@ commands = [["pytest"]]
 description = "Run ruff lint + format checks"
 dependency_groups = ["lint"]
 commands = [
-    ["ruff", "check", "."],
-    ["ruff", "format", "--check", "."],
+    ["ruff", "check", "src", "tests"],
+    ["ruff", "format", "--check", "src", "tests"],
 ]
 
 [tool.tox.env.type]
 description = "Run mypy"
 dependency_groups = ["type"]
-commands = [["mypy", "src"]]
+commands = [["mypy", "src", "tests"]]

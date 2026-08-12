@@ -75,3 +75,6 @@ commands = [
 description = "Run mypy"
 dependency_groups = ["type", "test"]
 commands = [["mypy", "src", "tests"]]
+
+[tool.tox.env.py313]
+commands = [["pytest", "--cov=resume_builder", "--cov-report=term-missing"]]

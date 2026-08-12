@@ -13,3 +13,6 @@ src/resume_builder/_version.py
 # --- Other ---
 claude_private/
 CLAUDE.local.md
+
+# --- coverage ---
+.coverage

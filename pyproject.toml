@@ -73,5 +73,5 @@ commands = [
 
 [tool.tox.env.type]
 description = "Run mypy"
-dependency_groups = ["type"]
+dependency_groups = ["type", "test"]
 commands = [["mypy", "src", "tests"]]

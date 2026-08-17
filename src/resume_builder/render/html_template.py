@@ -1,0 +1,17 @@
+RESUME_TEMPLATE = """<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  {% for css_path in css %}
+  <link rel="stylesheet" href="{{ css_path }}">
+  {% endfor %}
+</head>
+<body>
+  {{ content }}
+
+  {% for js_path in js %}
+  <script src="{{ js_path }}"></script>
+  {% endfor %}
+</body>
+</html>
+"""

@@ -24,7 +24,11 @@ def write_model_to_markdown(model: BaseModel, file_path: Path) -> None:
 
     for field_name in type(model).model_fields:
         value = getattr(model, field_name)
-        lines.append(f"## {field_name}")
+        field_name_section_text = f"## {field_name}"
+        field_name_attr_section = f"{{#{field_name}}}"
+
+        lines.append(field_name_attr_section)
+        lines.append(field_name_section_text)
 
         if isinstance(value, BaseModel):
             lines.extend(_render_bullets(value))

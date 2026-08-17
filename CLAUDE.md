@@ -2,6 +2,18 @@
 
 Python lib to generate resumes (Markdown -> HTML/PDF).
 
+## Design inspiration
+
+Modeled on R's **pagedown** package: write a resume in Markdown, render it to a paginated HTML page, export that to PDF. Pandoc (which pagedown uses) bundles Markdown parsing, YAML frontmatter parsing, and templating into one tool; this project deliberately composes separate, pure-Python libraries instead, to stay a plain `pip install` with no external binary dependency:
+
+| Job | pagedown/Pandoc | resume-builder |
+|---|---|---|
+| Parse Markdown | Pandoc's own reader | `markdown-it-py` |
+| Parse YAML frontmatter | Pandoc's reader (built in) | `pyyaml` |
+| Stitch content + metadata into HTML | Pandoc's own template engine | `Jinja2` |
+| Pagination | `paged.js` | `paged.js` (same tool) |
+| HTML → PDF | headless Chrome print | Playwright (headless Chromium) |
+
 ## Stack
 
 - Project and dependency management: **uv** (no manual pip/venv — use `uv add`, `uv sync`, `uv run`).
@@ -38,7 +50,10 @@ DevOps scaffolding is done (pre-commit, ruff, mypy strict, pytest, tox, CI, hatc
 
 Tests live in `tests/`, mirroring the `src/resume_builder/` package structure (e.g. `tests/models/` for `src/resume_builder/models/`).
 
-Two planned ways to build a resume (see project's own private planning notes for the full pagedown-inspired reasoning):
+Two planned ways to build a resume (see "Design inspiration" above for the pagedown reasoning):
 
-- **Markdown-based** (current focus): `Resume` model → `write_model_to_markdown()` generates a starter `.md` → user hand-edits it directly (data, CSS/JS) → `markdown-it-py` parses that edited file *directly* into HTML via a Jinja2 template → `paged.js` pagination → Playwright → PDF. The pydantic model is only used to generate the template — rendering never parses the user's edited Markdown back into a strict model; it walks the parsed Markdown directly, same as pagedown/Pandoc. Not built past template generation yet.
+- **Markdown-based** (current focus): `Resume` model → `write_model_to_markdown()` generates a starter `.md` → user hand-edits it directly (data, CSS/JS) → `markdown-it-py` parses that edited file *directly* into HTML via a Jinja2 template → `paged.js` pagination → Playwright → PDF. The pydantic model is only used to generate the template — rendering never parses the user's edited Markdown back into a strict model; it walks the parsed Markdown directly, same as pagedown/Pandoc.
+  - `render_resume()` (`src/resume_builder/render/renderer.py`) does the actual `.md` → `.html` conversion. Done and working end to end (minus `paged.js`/PDF, still later steps).
+  - `MarkdownIt` is configured with `.use(front_matter_plugin).use(attrs_block_plugin)`. `front_matter_plugin` extracts the `css`/`js` YAML block (parsed via `pyyaml`). `attrs_block_plugin` gives each `## field` section a real `id` matching the field name (e.g. `id="contact"`) — needed so a future default/user CSS can target specific sections.
+  - Important syntax constraint: `attrs_block_plugin` only recognizes a `{#id}` block when it's **on its own line, immediately before** the block it targets (`{#contact}` then `## contact` on the next line) — trailing on the same line as the heading (pagedown/Pandoc's convention) does not work with this plugin. `write_model_to_markdown()` generates this two-line form.
 - **App-based** (deferred, not started): a future app builds resume data directly (no `.md` involved) and feeds into the same render step as above.

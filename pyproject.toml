@@ -8,8 +8,10 @@ authors = [
 ]
 requires-python = ">=3.11"
 dependencies = [
+    "jinja2>=3.1.6",
     "markdown-it-py[plugins]>=4.2.0",
     "pydantic>=2.13.4",
+    "pyyaml>=6.0.3",
 ]
 
 [project.scripts]
@@ -30,7 +32,10 @@ version-file = "src/resume_builder/_version.py"
 
 [dependency-groups]
 lint = ["ruff>=0.16.1"]
-type = ["mypy>=2.3.0"]
+type = [
+    "mypy>=2.3.0",
+    "types-pyyaml>=6.0.12.20260815",
+]
 test = ["pytest>=9.1.1",
     "pytest-cov>=7.1.0"]
 

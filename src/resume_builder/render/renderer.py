@@ -24,7 +24,12 @@ def render_resume(md_path: Path, output_path: Path) -> None:
             `write_model_to_markdown`, then optionally hand-edited).
         output_path: Path the final `.html` file is written to.
     """
+    if not md_path.is_file():
+        raise FileNotFoundError(f"{md_path} does not exist or is not a file")
+
     text = md_path.read_text(encoding="utf-8")
+    if not text.strip():
+        raise ValueError(f"{md_path} is empty")
 
     md = MarkdownIt("commonmark", {"html": True}).use(front_matter_plugin).use(attrs_block_plugin)
     tokens = md.parse(text)

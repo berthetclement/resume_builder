@@ -2,6 +2,7 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
+from resume_builder.template.constants import YAML_FRONT_MATTER
 from resume_builder.template.default_resume import DEFAULT_RESUME
 
 
@@ -20,7 +21,9 @@ def write_model_to_markdown(model: BaseModel, file_path: Path) -> None:
     """
     Writes a Pydantic BaseModel instance to a Markdown file.
     """
-    lines = [f"# {type(model).__name__}", ""]
+    lines = [YAML_FRONT_MATTER]
+    lines.append(f"# {type(model).__name__}")
+    lines.append("")
 
     for field_name in type(model).model_fields:
         value = getattr(model, field_name)

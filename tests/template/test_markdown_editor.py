@@ -24,6 +24,9 @@ def test_write_model_to_markdown(tmp_path: Path, default_resume: Resume) -> None
         assert "## contact" in content
         assert "## experiences" in content
 
+        # track markdown "container_plugin" ("section")
+        assert "::: section" in content
+
         # check contact details
         assert "John Doe" in content
         assert "- **email**: john.doe@example.com" in content

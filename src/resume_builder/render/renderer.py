@@ -4,6 +4,7 @@ import yaml
 from jinja2 import Environment, PackageLoader
 from markdown_it import MarkdownIt
 from mdit_py_plugins.attrs import attrs_block_plugin
+from mdit_py_plugins.container import container_plugin
 from mdit_py_plugins.front_matter import front_matter_plugin
 
 from resume_builder.render.constants import CONTENT_KEY, CSS_KEY, JS_KEY
@@ -31,7 +32,12 @@ def render_resume(md_path: Path, output_path: Path) -> None:
     if not text.strip():
         raise ValueError(f"{md_path} is empty")
 
-    md = MarkdownIt("commonmark", {"html": True}).use(front_matter_plugin).use(attrs_block_plugin)
+    md = (
+        MarkdownIt("commonmark", {"html": True})
+        .use(front_matter_plugin)
+        .use(attrs_block_plugin)
+        .use(container_plugin, "section")
+    )
     tokens = md.parse(text)
 
     frontmatter: dict[str, object] = {}

@@ -18,9 +18,7 @@ def test_write_model_to_markdown(tmp_path: Path, default_resume: Resume) -> None
     with open(tmp_path / "test_resume.md") as f:
         content = f.read()
         # main sections
-        assert "# Resume" in content
-        assert "## name" in content
-        assert "## title" in content
+        assert "# main" in content
         assert "## contact" in content
         assert "## experiences" in content
 

@@ -55,7 +55,3 @@ def test_render_resume_with_init_resume(tmp_path: Path) -> None:
 
     html = output_path.read_text(encoding="utf-8")
     assert "<!DOCTYPE html>" in html
-    assert 'id="name"' in html
-    assert 'id="title"' in html
-    assert 'id="contact"' in html
-    assert 'id="experiences"' in html

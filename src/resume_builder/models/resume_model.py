@@ -1,6 +1,12 @@
 from pydantic import BaseModel
 
 
+class main(BaseModel):
+    name: str
+    title: str
+    description: str
+
+
 class contact(BaseModel):
     email: str
     phone: str
@@ -14,7 +20,6 @@ class experience(BaseModel):
 
 
 class Resume(BaseModel):
-    name: str
-    title: str
+    main: main
     contact: contact
     experiences: list[experience]

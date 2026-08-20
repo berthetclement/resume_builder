@@ -2,6 +2,19 @@
 
 Python lib to generate resumes (Markdown -> HTML/PDF).
 
+## Code review
+
+When reviewing code:
+- Design: does this fit the existing architecture, not fight it.
+- Functionality: does it actually do what it claims, including edge cases.
+- Complexity: could this be simpler.
+- Tests: real coverage, not padding — flag missing tests and weakened/removed assertions.
+- Naming: clear, PEP8-compliant, no collisions with existing names.
+- Consistency: matches existing patterns and conventions in the repo.
+- Verify library/API behavior before trusting it — don't assume.
+- Reuse existing utilities before adding new ones.
+- No abstractions without a concrete, current benefit.
+
 ## Design inspiration
 
 Modeled on R's **pagedown** package: write a resume in Markdown, render it to a paginated HTML page, export that to PDF. Pandoc (which pagedown uses) bundles Markdown parsing, YAML frontmatter parsing, and templating into one tool; this project deliberately composes separate, pure-Python libraries instead, to stay a plain `pip install` with no external binary dependency:
@@ -46,7 +59,7 @@ uv run tox -p                              # run the full matrix (py311/py312/py
 
 DevOps scaffolding is done (pre-commit, ruff, mypy strict, pytest, tox, CI, hatch-vcs) per the "no feature before a complete lib setup" principle. Business logic is in progress on feature branches, not yet merged to `main`:
 
-- `src/resume_builder/models/` — `pydantic` `Resume`/`contact`/`experience` models, still being iterated on, not the final shape.
+- `src/resume_builder/models/` — `pydantic` `Resume`/`contact`/`experience` models, still being iterated on, not the final shape. **Active work in progress**: reworking the model, then `write_model_to_markdown()` (currently renders nested-model fields as flat `- **fieldname**: value` bullets — shows the field *name* as structure instead of promoting the *value*, unlike `_render_entry`'s heading-promotion for list items; being fixed for consistency). Design decision made: `Resume` stays a flat, layout-agnostic model (no `aside`/`main` grouping baked into the schema) — an aside/main visual split (contact/skills vs. name/title/experiences) will be driven separately, e.g. via a layout mapping passed to a future `write_model_to_css()`, not by restructuring the data model itself. Once this settles, next step is the CSS work (`DEFAULT_CSS`/`write_model_to_css`).
 - `src/resume_builder/template/markdow_editor.py` — `write_model_to_markdown()` (generates a starter `.md` from a `Resume` instance) and `init_resume()` (writes it to a target directory, refuses to overwrite an existing file unless `force=True`). The generated `.md` also gets a commented-out `YAML_FRONT_MATTER` hint (`template/constants.py`) showing how to add a `css:` block — real, valid, inert frontmatter (all lines commented via `#`) rather than a plain-text note, so it's immediately usable by uncommenting.
 
 Tests live in `tests/`, mirroring the `src/resume_builder/` package structure (e.g. `tests/models/` for `src/resume_builder/models/`).

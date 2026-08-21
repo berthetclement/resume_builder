@@ -18,17 +18,17 @@ def test_write_model_to_markdown(tmp_path: Path, default_resume: Resume) -> None
     with open(tmp_path / "test_resume.md") as f:
         content = f.read()
         # main sections
-        assert "# main" in content
-        assert "## contact" in content
-        assert "## experiences" in content
+        assert "{#main}" in content
+        assert "{#contact}" in content
+        assert "{#experiences}" in content
 
         # track markdown "container_plugin" ("section")
         assert "::: section" in content
 
         # check contact details
         assert "John Doe" in content
-        assert "- **email**: john.doe@example.com" in content
-        assert "- **phone**: 123-456-7890" in content
+        assert "john.doe@example.com" in content
+        assert "123-456-7890" in content
 
         # check experiences details
         assert "### Acme Corp" in content

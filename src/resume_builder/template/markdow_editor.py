@@ -2,12 +2,9 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
+from resume_builder.models.constants import CUSTOM_FIELD, MARKDOWN_HEADERS
 from resume_builder.template.constants import YAML_FRONT_MATTER
 from resume_builder.template.default_resume import DEFAULT_RESUME
-
-
-def _render_bullets(nested: BaseModel) -> list[str]:
-    return [f"- **{name}**: {getattr(nested, name)}" for name in type(nested).model_fields]
 
 
 def _render_entry(item: BaseModel) -> list[str]:
@@ -17,34 +14,78 @@ def _render_entry(item: BaseModel) -> list[str]:
     return lines
 
 
+def _render_section(model: BaseModel, section_name: str) -> list[str]:
+    # to use plugin "attrs_block_plugin"
+    attrs_block_content = f"{{#{section_name}}}"
+    attrs_container_section_content_start = "::: section"
+    attrs_container_section_content_end = ":::"
+
+    lines = [
+        attrs_block_content,
+        attrs_container_section_content_start,
+    ]
+
+    for field_name, field_info in type(model).model_fields.items():
+        value = getattr(model, field_name)
+
+        extra = field_info.json_schema_extra
+        markdown_header = extra.get(CUSTOM_FIELD) if isinstance(extra, dict) else None
+
+        if markdown_header in MARKDOWN_HEADERS:
+            lines.append(f"{MARKDOWN_HEADERS[markdown_header]} {value}")
+        else:
+            lines.append(str(value))
+
+        lines.append("")
+
+    lines.extend(
+        [
+            attrs_container_section_content_end,
+            "",
+        ]
+    )
+
+    return lines
+
+
+def _render_section_entries(entries: list[BaseModel], section_name: str) -> list[str]:
+    # to use plugin "attrs_block_plugin"
+    attrs_block_content = f"{{#{section_name}}}"
+    attrs_container_section_content_start = "::: section"
+    attrs_container_section_content_end = ":::"
+
+    lines = [
+        attrs_block_content,
+        attrs_container_section_content_start,
+    ]
+
+    for item in entries:
+        lines.extend(_render_entry(item))
+
+    lines.extend(
+        [
+            attrs_container_section_content_end,
+            "",
+        ]
+    )
+
+    return lines
+
+
 def write_model_to_markdown(model: BaseModel, file_path: Path) -> None:
     """
     Writes a Pydantic BaseModel instance to a Markdown file.
     """
     lines = [YAML_FRONT_MATTER]
-    lines.append(f"# {type(model).__name__}")
     lines.append("")
 
     for field_name in type(model).model_fields:
         value = getattr(model, field_name)
 
-        lines.append(f"{{#{field_name}}}")
-        lines.append("::: section")
-        lines.append(f"## {field_name}")
-
         if isinstance(value, BaseModel):
-            lines.extend(_render_bullets(value))
-        elif isinstance(value, list):
-            for item in value:
-                lines.extend(_render_entry(item))
-                lines.append("")
+            lines.extend(_render_section(value, field_name))
         else:
-            lines.append(str(value))
-
-        lines.append(":::")
-        lines.append("")
-
-        lines.append("")
+            lines.extend(_render_section_entries(value, field_name))
 
     file_path.write_text("\n".join(lines), encoding="utf-8")
 

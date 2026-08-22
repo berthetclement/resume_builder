@@ -27,6 +27,39 @@ Modeled on R's **pagedown** package: write a resume in Markdown, render it to a 
 | Pagination | `paged.js` | `paged.js` (same tool) |
 | HTML → PDF | headless Chrome print | Playwright (headless Chromium) |
 
+### How pagedown structures a resume entry (investigated, source-verified)
+
+pagedown's resume Markdown is deliberately bare — no containers, no classes, just a heading followed by
+plain lines (`### Job title` / place / location / `2021 - Aujourd'hui` / free Markdown). It gets from that
+to a styled entry in **two layers**:
+
+1. **Heading → per-entry wrapper.** Pandoc's `--section-divs` (default in rmarkdown's HTML formats) wraps
+   each heading *and everything under it* in `<div class="section level3" id="…">`, nesting by heading
+   level. This is what gives each job its own box — nothing in the Markdown declares it.
+2. **Position → semantic class.** An inline `<script>` in `inst/resources/html/resume.html` rewrites each
+   entry's DOM, picking fields out **by index**: `ps[2]` is the date (split on `" - "` into two spans),
+   `el.children[3]` is the place, the next one is the location. It injects `.blocks` / `.date` /
+   `.decorator` / `.details` / `.place` / `.location`, and only then does `resume.css` style them.
+   Missing fields are held open by writing the literal `N/A`, which the script drops.
+
+So pagedown's Markdown is clean because a *browser script* pays the cost of turning line position into
+meaning. The CSS never sees the flat Markdown.
+
+**Where this project wants to land:** same ergonomics (minimal, heading-driven `.md`), simplest possible
+mechanism. Preference is explicitly **no JS and no hand-written HTML** — ideally the user only ever touches
+`.md` + `.css`. That is reachable because we control the Markdown → HTML step in Python, which pagedown
+does not:
+
+- Layer 1 is **required** and should be done in the renderer (a token transform that wraps a heading plus
+  its following content into a div, mirroring `--section-divs`). A wrapper element is not optional: without
+  one, `break-inside: avoid` has no box to apply to and `paged.js` will split a job across a page break —
+  and CSS cannot group flat siblings, since it can style boxes but never create them.
+- Layer 2 is **skippable**. Once each entry has a wrapper, plain `.entry p:nth-of-type(2)` (plus modern
+  `:has()`, available in the Chromium Playwright ships) does what pagedown needed JavaScript for in 2019.
+
+Net: keep pagedown's authoring experience, drop its runtime — the wrapper is generated in Python, not by a
+script in the page.
+
 ## Stack
 
 - Project and dependency management: **uv** (no manual pip/venv — use `uv add`, `uv sync`, `uv run`).

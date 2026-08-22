@@ -2,6 +2,7 @@ LAST_POSITION = "Project Manager"
 
 NAME = "John Doe"
 TITLE = LAST_POSITION
+DESCRIPTION = "Experienced software engineer with a passion for developing innovative programs."
 EMAIL = "john.doe@example.com"
 PHONE = "123-456-7890"
 

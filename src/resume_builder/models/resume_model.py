@@ -15,6 +15,8 @@ MarkdownH2 = Annotated[
     Field(json_schema_extra={CUSTOM_FIELD: HEADER2}),
 ]
 
+# TODO : Add MarkdownH3 to be inline convention explained in claude.md file
+
 
 class main(BaseModel):
     name: MarkdownH1

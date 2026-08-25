@@ -1,6 +1,10 @@
 # resume-builder
 
-Python lib to generate resumes (Markdown -> HTML/PDF).
+Python lib to generate resumes (Markdown -> HTML/PDF), modeled on R's **pagedown**.
+
+Keep this file **normative and stable**: conventions, stack, commands. If a sentence
+goes stale the moment you commit, it does not belong here — put transient status in
+the branch, and reasoning in `claude_private/`.
 
 ## Code review
 
@@ -14,51 +18,111 @@ When reviewing code:
 - Verify library/API behavior before trusting it — don't assume.
 - Reuse existing utilities before adding new ones.
 - No abstractions without a concrete, current benefit.
+- Decisions made in discussion must land in the code, its tests or this file. A choice
+  that lives only in a conversation is lost.
 
-## Design inspiration
+## Conventions
 
-Modeled on R's **pagedown** package: write a resume in Markdown, render it to a paginated HTML page, export that to PDF. Pandoc (which pagedown uses) bundles Markdown parsing, YAML frontmatter parsing, and templating into one tool; this project deliberately composes separate, pure-Python libraries instead, to stay a plain `pip install` with no external binary dependency:
+The contract between the Markdown, the model and the CSS. Everything here is
+deliberate — see `claude_private/pagedown-notes.md` for why. The code is not fully
+aligned with it yet; the remaining gaps are tracked in
+`claude_private/pipeline-schema.md`.
 
-| Job | pagedown/Pandoc | resume-builder |
+### Heading levels — exactly three, fixed meaning
+
+| Level | Meaning | Where it comes from |
 |---|---|---|
-| Parse Markdown | Pandoc's own reader | `markdown-it-py` |
-| Parse YAML frontmatter | Pandoc's reader (built in) | `pyyaml` |
-| Stitch content + metadata into HTML | Pandoc's own template engine | `Jinja2` |
-| Pagination | `paged.js` | `paged.js` (same tool) |
-| HTML → PDF | headless Chrome print | Playwright (headless Chromium) |
+| `#` | document title (the person's name) | `MarkdownH1` hint on `main.name` |
+| `##` | section title (`CONTACT`, `EXPERIENCES PROFESSIONNELLES`) | `Field(title=...)` on the `Resume` field |
+| `###` | entry title — **opens an `.entry` box** | `MarkdownH3` hint on the entry's first field |
 
-### How pagedown structures a resume entry (investigated, source-verified)
+`main` is the only exception, and it needs no special-casing in code: it has no
+`Field(title=...)` (so no `##` is emitted) and it is the only section holding the `#`.
 
-pagedown's resume Markdown is deliberately bare — no containers, no classes, just a heading followed by
-plain lines (`### Job title` / place / location / `2021 - Aujourd'hui` / free Markdown). It gets from that
-to a styled entry in **two layers**:
+### Section markup
 
-1. **Heading → per-entry wrapper.** Pandoc's `--section-divs` (default in rmarkdown's HTML formats) wraps
-   each heading *and everything under it* in `<div class="section level3" id="…">`, nesting by heading
-   level. This is what gives each job its own box — nothing in the Markdown declares it.
-2. **Position → semantic class.** An inline `<script>` in `inst/resources/html/resume.html` rewrites each
-   entry's DOM, picking fields out **by index**: `ps[2]` is the date (split on `" - "` into two spans),
-   `el.children[3]` is the place, the next one is the location. It injects `.blocks` / `.date` /
-   `.decorator` / `.details` / `.place` / `.location`, and only then does `resume.css` style them.
-   Missing fields are held open by writing the literal `N/A`, which the script drops.
+One `::: section` per `Resume` field, `id` = the field name:
 
-So pagedown's Markdown is clean because a *browser script* pays the cost of turning line position into
-meaning. The CSS never sees the flat Markdown.
+```markdown
+{#experiences}
+::: section
+## EXPERIENCES PROFESSIONNELLES
 
-**Where this project wants to land:** same ergonomics (minimal, heading-driven `.md`), simplest possible
-mechanism. Preference is explicitly **no JS and no hand-written HTML** — ideally the user only ever touches
-`.md` + `.css`. That is reachable because we control the Markdown → HTML step in Python, which pagedown
-does not:
+### Consultant Data Scientist
 
-- Layer 1 is **required** and should be done in the renderer (a token transform that wraps a heading plus
-  its following content into a div, mirroring `--section-divs`). A wrapper element is not optional: without
-  one, `break-inside: avoid` has no box to apply to and `paged.js` will split a job across a page break —
-  and CSS cannot group flat siblings, since it can style boxes but never create them.
-- Layer 2 is **skippable**. Once each entry has a wrapper, plain `.entry p:nth-of-type(2)` (plus modern
-  `:has()`, available in the Chromium Playwright ships) does what pagedown needed JavaScript for in 2019.
+Acme Corp
 
-Net: keep pagedown's authoring experience, drop its runtime — the wrapper is generated in Python, not by a
-script in the page.
+2021 - Aujourd'hui
+
+:::
+```
+
+- `{#id}` must be **on its own line, immediately before** the block it targets.
+  Pandoc/pagedown's trailing form (`## Title {#id}`) does *not* work with
+  `attrs_block_plugin`.
+- The container wraps the *whole* section, heading included — CSS Grid treats every
+  direct child of the grid container as its own item, so the heading and its content
+  must move as one unit.
+- **One blank line between every field.** This is load-bearing, not cosmetic:
+  CommonMark merges adjacent lines into a single `<p>`, and no stylesheet can pull
+  them apart afterwards.
+
+### Entry boxes
+
+`wrap_entries()` (`render/entries.py`) inserts `<div class="entry">` at every `###`
+inside a `::: section`, closing it at the next `###` or at the end of the container.
+
+- The level is **absolute** (`h3`), never inferred from what the section happens to
+  contain. Relative heuristics were tried and break on titled sections.
+- A section with no `###` gets no entry (`contact`, `skills`). That is correct, not a
+  gap.
+- `main`'s `###` (the job headline) also produces an entry. Intentional — it mirrors
+  pagedown's `--section-divs`, and `break-inside: avoid` keeping the headline with its
+  paragraph is desirable.
+- The box is required: `break-inside: avoid` needs an element, and positional
+  selectors must count *within* an entry, not across the whole section.
+
+### Where rendering hints live
+
+Two different things, two different homes — do not mix them:
+
+- **Data** rendered as a heading → `Annotated` + `Field(json_schema_extra=...)`, via the
+  `MarkdownH1`/`MarkdownH3` aliases in `models/resume_model.py`. Use `json_schema_extra`,
+  never bare `Field(..., markdown=...)` — deprecated in pydantic v2, removed in v3.
+- **Labels** (section titles) → native `Field(title=...)`, read back via
+  `model_fields[name].title`.
+
+The rule that decides: `Field(title=...)` is fixed at class-definition time and shared
+by every instance, so it can only ever hold a label. Anything that varies per resume is
+data and belongs in a field.
+
+### CSS
+
+Every section div carries both its `id` and `class="section"`, so levels never collide
+across sections — `#contact h2` and `#experiences h2` are styled independently, and
+`#experiences .entry p:nth-of-type(1)` addresses one job's first line.
+
+## Architecture
+
+`Resume` (pydantic) → `write_model_to_markdown()` generates a starter `.md` → the user
+hand-edits it → `render_resume()` parses that file directly into HTML via Jinja2 →
+`paged.js` → Playwright → PDF.
+
+pydantic appears only on the way *out*. Rendering never parses the user's edited
+Markdown back into a strict model — it walks the token stream directly, same as
+pagedown/Pandoc.
+
+`MarkdownIt` is configured with `.use(front_matter_plugin).use(attrs_block_plugin)
+.use(container_plugin, "section")`. The Jinja2 template is a real file
+(`render/templates/resume.html.j2`, loaded via `PackageLoader`) — hatchling ships
+non-`.py` files under `src/resume_builder/` in the wheel automatically.
+
+Tests live in `tests/`, mirroring the `src/resume_builder/` package structure.
+
+Deeper notes live in `claude_private/`, which is gitignored — a fresh clone will not
+have it, and everything normative is in this file instead. Locally: `pipeline-schema.md` (the two axes, Markdown-based
+and the deferred app-based one), `pagedown-notes.md` (why the conventions are what they
+are), `css-layout-notes.md`, `devops-setup.md`, `project-goals.md`.
 
 ## Stack
 
@@ -87,27 +151,3 @@ uv run pytest                              # run tests
 uv run pytest --cov=resume_builder --cov-report=term-missing tests/ # coverage
 uv run tox -p                              # run the full matrix (py311/py312/py313/lint/type) in parallel, local dev only (CI runs it sequentially, see below)
 ```
-
-## Current state
-
-DevOps scaffolding is done (pre-commit, ruff, mypy strict, pytest, tox, CI, hatch-vcs) per the "no feature before a complete lib setup" principle. Business logic is in progress on feature branches, not yet merged to `main`:
-
-- `src/resume_builder/models/` — `pydantic` `Resume`/`contact`/`experience` models, still being iterated on, not the final shape. **Active work in progress, pushed as WIP, not final**:
-  - Per-field rendering hints via `Annotated` + `Field(json_schema_extra={"markdown": "h1"/"h2"})` (`models/constants.py` has the `CUSTOM_FIELD`/`HEADER1`/`HEADER2`/`MARKDOWN_HEADERS` keys, reusable `MarkdownH1`/`MarkdownH2` type aliases in `resume_model.py`). Use `json_schema_extra`, not bare `Field(..., markdown=...)` — the latter is deprecated in pydantic v2, removed in v3. `write_model_to_markdown()`'s new `_render_section()` reads these hints generically (one renderer, no per-model special-casing) instead of hardcoding which field becomes a heading.
-  - **Known bug, not yet fixed**: `write_model_to_markdown()`'s dispatch is currently 2-way (`isinstance(value, BaseModel)` → `_render_section()`, else → `_render_section_entries()`, which assumes a `list[BaseModel]`). A plain scalar field directly on `Resume` (e.g. a future `footnote: str`) crashes with `AttributeError: type object 'str' has no attribute 'model_fields'` — reproduced directly. Needs the old 3-way branch back (`BaseModel` / `list` / plain scalar).
-  - **Known gap**: `_render_entry()` (renders `experience` list items) doesn't read the `json_schema_extra` hints at all yet — still hardcoded (`### {first_field}` + bullets for the rest). `experience.company`/`experience.position` were typed as `MarkdownH1`/`MarkdownH2` but this has no effect until `_render_entry()` is updated to match `_render_section()`'s hint-reading.
-  - **Open question**: `contact`'s fields (`email`/`phone`) lost their `- **field**: value` bullet formatting when `_render_section()` replaced the old bullet-specific renderer — now plain `str(value)` per line, no label. Not yet confirmed whether that's intentional.
-  - Design decision already made: `Resume` stays a flat, layout-agnostic model (no `aside`/`main` grouping baked into the schema) — an aside/main visual split (contact/skills vs. name/title/experiences) will be driven separately, e.g. via a layout mapping passed to a future `write_model_to_css()`, not by restructuring the data model itself. CSS work (`DEFAULT_CSS`/`write_model_to_css`) is next once the above settles.
-- `src/resume_builder/template/markdow_editor.py` — `write_model_to_markdown()` (generates a starter `.md` from a `Resume` instance) and `init_resume()` (writes it to a target directory, refuses to overwrite an existing file unless `force=True`). The generated `.md` also gets a commented-out `YAML_FRONT_MATTER` hint (`template/constants.py`) showing how to add a `css:` block — real, valid, inert frontmatter (all lines commented via `#`) rather than a plain-text note, so it's immediately usable by uncommenting.
-
-Tests live in `tests/`, mirroring the `src/resume_builder/` package structure (e.g. `tests/models/` for `src/resume_builder/models/`).
-
-Two planned ways to build a resume (see "Design inspiration" above for the pagedown reasoning):
-
-- **Markdown-based** (current focus): `Resume` model → `write_model_to_markdown()` generates a starter `.md` → user hand-edits it directly (data, CSS/JS) → `markdown-it-py` parses that edited file *directly* into HTML via a Jinja2 template → `paged.js` pagination → Playwright → PDF. The pydantic model is only used to generate the template — rendering never parses the user's edited Markdown back into a strict model; it walks the parsed Markdown directly, same as pagedown/Pandoc.
-  - `render_resume()` (`src/resume_builder/render/renderer.py`) does the actual `.md` → `.html` conversion. Done, tested (not-found, empty-file, css-frontmatter, full happy path), and working end to end (minus `paged.js`/PDF, still later steps). Validates its input first: raises `FileNotFoundError` if `md_path` doesn't exist, `ValueError` if it's empty.
-  - `MarkdownIt` is configured with `.use(front_matter_plugin).use(attrs_block_plugin).use(container_plugin, "section")`. `front_matter_plugin` extracts the `css`/`js` YAML block (parsed via `pyyaml`). `attrs_block_plugin` + `container_plugin` together give each field a real `id` on a `<div>` wrapping its *entire* section (heading + content), not just the heading — needed because CSS Grid treats every direct child of the grid container as its own item, so heading and content must move together as one unit to be positioned as a section.
-  - `write_model_to_markdown()` generates this as `{#field}` / `::: section` / `## field` / ...content... / `:::` — a fenced-div block, not just a two-line heading+id form. Important syntax constraint carried over from `attrs_block_plugin`: the `{#id}` block must be **on its own line, immediately before** the block it targets — trailing on the same line as the heading/div (pagedown/Pandoc's convention) does not work with this plugin.
-  - The Jinja2 template itself is a real file, `src/resume_builder/render/templates/resume.html.j2`, loaded via `jinja2.PackageLoader("resume_builder.render", "templates")` — not a Python string constant. Confirmed hatchling ships non-`.py` files under `src/resume_builder/` in the wheel automatically, no extra packaging config needed.
-  - `src/resume_builder/render/templates/theme.css` — a real example stylesheet using CSS Grid to lay out `name`/`title` in a left column and `contact` in a right column, `experiences` spanning full width below. Not yet wired up as an automatic default (that's the still-open `DEFAULT_CSS` fallback); currently just a hand-written example the user references via `css:` frontmatter.
-- **App-based** (deferred, not started): a future app builds resume data directly (no `.md` involved) and feeds into the same render step as above.

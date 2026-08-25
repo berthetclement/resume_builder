@@ -8,6 +8,7 @@ from mdit_py_plugins.container import container_plugin
 from mdit_py_plugins.front_matter import front_matter_plugin
 
 from resume_builder.render.constants import CONTENT_KEY, CSS_KEY, JS_KEY
+from resume_builder.render.entries import wrap_entries
 
 _env = Environment(loader=PackageLoader("resume_builder.render", "templates"))
 
@@ -38,13 +39,15 @@ def render_resume(md_path: Path, output_path: Path) -> None:
         .use(attrs_block_plugin)
         .use(container_plugin, "section")
     )
-    tokens = md.parse(text)
+    env: dict[str, object] = {}
+    tokens = md.parse(text, env)
 
     frontmatter: dict[str, object] = {}
     if tokens and tokens[0].type == "front_matter":
         frontmatter = yaml.safe_load(tokens[0].content) or {}
 
-    body_html = md.render(text)
+    # Give each entry a real element for CSS/paged.js to work with.
+    body_html = md.renderer.render(wrap_entries(tokens), md.options, env)
 
     template = _env.get_template("resume.html.j2")
     final_html = template.render(

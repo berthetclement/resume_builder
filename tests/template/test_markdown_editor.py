@@ -15,20 +15,26 @@ def test_write_model_to_markdown(tmp_path: Path, default_resume: Resume) -> None
     assert (tmp_path / "test_resume.md").exists()
 
     # check markdown content is in line with the model data
-    with open(tmp_path / "test_resume.md") as f:
-        content = f.read()
-        # main sections
-        assert "{#main}" in content
-        assert "{#contact}" in content
-        assert "{#experiences}" in content
+    content = (tmp_path / "test_resume.md").read_text(encoding="utf-8")
 
-        # track markdown "container_plugin" ("section")
-        assert "::: section" in content
+    # main sections
+    assert "{#main}" in content
+    assert "{#contact}" in content
+    assert "{#experiences}" in content
 
-        # check contact details
-        assert "John Doe" in content
-        assert "john.doe@example.com" in content
-        assert "123-456-7890" in content
+    # track markdown "container_plugin" ("section")
+    assert "::: section" in content
+
+    # check contact details
+    assert "John Doe" in content
+    assert "john.doe@example.com" in content
+    assert "123-456-7890" in content
+
+    # every experience value reaches the file — derived from the model, so this
+    # survives formatting changes but still fails if an entry renders empty
+    for entry in default_resume.experiences:
+        for value in entry.model_dump().values():
+            assert str(value) in content
 
 
 def test_init_default_resume(tmp_path: Path) -> None:

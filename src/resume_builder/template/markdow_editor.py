@@ -23,6 +23,8 @@ def _render_entry(item: BaseModel) -> list[str]:
             # Default to a simple string if no model specification
             lines.append(str(value))
 
+        lines.append("")  # Add a blank line after each field for better Markdown formatting
+
     return lines
 
 

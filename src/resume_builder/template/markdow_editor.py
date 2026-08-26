@@ -2,7 +2,7 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-from resume_builder.models.constants import CUSTOM_FIELD, MARKDOWN_HEADERS
+from resume_builder.models.constants import CUSTOM_FIELD, HEADER2, MARKDOWN_HEADERS
 from resume_builder.template.constants import YAML_FRONT_MATTER
 from resume_builder.template.default_resume import DEFAULT_RESUME
 
@@ -32,12 +32,13 @@ def _render_entry(model: BaseModel) -> list[str]:
     return lines
 
 
-def _render_section(model: BaseModel, section_name: str) -> list[str]:
+def _render_section(model: BaseModel, section_name: str, section_title_value: str | None) -> list[str]:
     """
     Renders a Pydantic BaseModel instance as a Markdown section.
     Args:
         model (BaseModel): The Pydantic model instance to render.
         section_name (str): The name of the section, used for the "attrs_block_plugin".
+        section_title_value (str): The value of header section (convention `MarkdownH2`).
         Returns:
             list[str]: The rendered Markdown lines for the section.
     """
@@ -50,6 +51,11 @@ def _render_section(model: BaseModel, section_name: str) -> list[str]:
         attrs_block_content,
         attrs_container_section_content_start,
     ]
+
+    # Convention header section
+    if section_title_value is not None:
+        lines.append(f"{MARKDOWN_HEADERS[HEADER2]} {section_title_value}")
+        lines.append("")
 
     # [BODY] : Append each field of the model as a Markdown line
     # Use the model's field metadata to determine if a field should be rendered as a Markdown header
@@ -84,12 +90,13 @@ def _render_section(model: BaseModel, section_name: str) -> list[str]:
     return lines
 
 
-def _render_section_entries(entries: list[BaseModel], section_name: str) -> list[str]:
+def _render_section_entries(entries: list[BaseModel], section_name: str, section_title_value: str | None) -> list[str]:
     """
     Renders a list of Pydantic BaseModel instances as a Markdown section.
     Args:
         entries (list[BaseModel]): The list of Pydantic model instances to render.
         section_name (str): The name of the section, used for the "attrs_block_plugin".
+        section_title_value (str): The value of header section (convention `MarkdownH2`).
     Returns:
         list[str]: The rendered Markdown lines for the section.
     """
@@ -102,6 +109,11 @@ def _render_section_entries(entries: list[BaseModel], section_name: str) -> list
         attrs_block_content,
         attrs_container_section_content_start,
     ]
+
+    # Convention header section
+    if section_title_value is not None:
+        lines.append(f"{MARKDOWN_HEADERS[HEADER2]} {section_title_value}")
+        lines.append("")
 
     # [BODY] : Append each entry in the list as a Markdown sub-section
     for item in entries:
@@ -130,10 +142,13 @@ def write_model_to_markdown(model: BaseModel, file_path: Path) -> None:
     for field_name in type(model).model_fields:
         value = getattr(model, field_name)
 
+        # check/extract Field "title" parameters
+        title = type(model).model_fields[field_name].title
+
         if isinstance(value, BaseModel):
-            lines.extend(_render_section(value, field_name))
+            lines.extend(_render_section(model=value, section_name=field_name, section_title_value=title))
         else:
-            lines.extend(_render_section_entries(value, field_name))
+            lines.extend(_render_section_entries(entries=value, section_name=field_name, section_title_value=title))
 
     file_path.write_text("\n".join(lines), encoding="utf-8")
 

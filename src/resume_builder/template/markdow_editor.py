@@ -7,11 +7,11 @@ from resume_builder.template.constants import YAML_FRONT_MATTER
 from resume_builder.template.default_resume import DEFAULT_RESUME
 
 
-def _render_entry(item: BaseModel) -> list[str]:
+def _render_entry(model: BaseModel) -> list[str]:
     lines = []
-    for field_name, field_info in type(item).model_fields.items():
+    for field_name, field_info in type(model).model_fields.items():
         # value of flat field
-        value = getattr(item, field_name)
+        value = getattr(model, field_name)
 
         # extract the custom field metadata
         extra = field_info.json_schema_extra
@@ -20,8 +20,12 @@ def _render_entry(item: BaseModel) -> list[str]:
         if markdown_header in MARKDOWN_HEADERS:
             lines.append(f"{MARKDOWN_HEADERS[markdown_header]} {value}")
         else:
-            # Default to a simple string if no model specification
-            lines.append(str(value))
+            # Default to a simple string if no model specification or list of strings
+            if isinstance(value, list):
+                for line in value:
+                    lines.append(f"- {line}")
+            else:
+                lines.append(str(value))
 
         lines.append("")  # Add a blank line after each field for better Markdown formatting
 
@@ -60,8 +64,12 @@ def _render_section(model: BaseModel, section_name: str) -> list[str]:
         if markdown_header in MARKDOWN_HEADERS:
             lines.append(f"{MARKDOWN_HEADERS[markdown_header]} {value}")
         else:
-            # Default to a simple string if no model specification
-            lines.append(str(value))
+            # Default to a simple string if no model specification or list of strings
+            if isinstance(value, list):
+                for line in value:
+                    lines.append(f"- {line}")
+            else:
+                lines.append(str(value))
 
         lines.append("")
 

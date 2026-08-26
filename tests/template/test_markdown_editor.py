@@ -34,7 +34,11 @@ def test_write_model_to_markdown(tmp_path: Path, default_resume: Resume) -> None
     # survives formatting changes but still fails if an entry renders empty
     for entry in default_resume.experiences:
         for value in entry.model_dump().values():
-            assert str(value) in content
+            if isinstance(value, list):
+                for item in value:
+                    assert str(item) in content
+            else:
+                assert str(value) in content
 
 
 def test_init_default_resume(tmp_path: Path) -> None:

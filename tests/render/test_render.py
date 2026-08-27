@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from resume_builder.render.renderer import render_resume
-from resume_builder.template.markdow_editor import init_resume
+from resume_builder.template.markdown_editor import init_resume
 
 
 def test_render_resume_raises_file_not_found(tmp_path: Path) -> None:

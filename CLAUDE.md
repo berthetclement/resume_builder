@@ -32,9 +32,9 @@ aligned with it yet; the remaining gaps are tracked in
 
 | Level | Meaning | Where it comes from |
 |---|---|---|
-| `#` | document title (the person's name) | `MarkdownH1` hint on `main.name` |
-| `##` | section title (`CONTACT`, `EXPERIENCES PROFESSIONNELLES`) | `Field(title=...)` on the `Resume` field |
-| `###` | entry title — **opens an `.entry` box** | `MarkdownH3` hint on the entry's first field |
+| `#` | document title (the person's name) | `MarkdownH1` hint on `Main.user_name` |
+| `##` | section title (`Contact Information`, `WORK EXPERIENCE`) | `Field(title=...)` on the `Resume` field |
+| `###` | entry title — **opens an `.entry` box** | `MarkdownH3` hint on the entry's first field (`Experience.position`, `Main.title_position`) |
 
 `main` is the only exception, and it needs no special-casing in code: it has no
 `Field(title=...)` (so no `##` is emitted) and it is the only section holding the `#`.
@@ -46,16 +46,26 @@ One `::: section` per `Resume` field, `id` = the field name:
 ```markdown
 {#experiences}
 ::: section
-## EXPERIENCES PROFESSIONNELLES
+## WORK EXPERIENCE
 
 ### Consultant Data Scientist
 
 Acme Corp
 
-2021 - Aujourd'hui
+Paris, France
+
+2021
+
+2022
+
+- Led the R package chain.
+- Released to CRAN.
 
 :::
 ```
+
+The line order inside the entry is not free — see "Entry field order" below. A list
+field renders as `- item` lines; every other field renders as one bare line.
 
 - `{#id}` must be **on its own line, immediately before** the block it targets.
   Pandoc/pagedown's trailing form (`## Title {#id}`) does *not* work with
@@ -81,6 +91,36 @@ inside a `::: section`, closing it at the next `###` or at the end of the contai
   paragraph is desirable.
 - The box is required: `break-inside: avoid` needs an element, and positional
   selectors must count *within* an entry, not across the whole section.
+
+### Entry field order
+
+Inside an entry, **position is meaning**. The stylesheet addresses fields by index, so
+the declaration order of a model's fields is a public contract, not an implementation
+detail: reordering them silently restyles the wrong thing, and neither mypy nor a
+presence-based test will notice.
+
+This is pagedown's own contract made explicit. It does the same thing — `ps[0]` place,
+`ps[1]` location, `ps[2]` date — but only inside an inline script, discoverable by
+reading the source. Here it is written down and pinned by a test.
+
+`Experience` renders as:
+
+| Order | Field | Element | Selector |
+|---|---|---|---|
+| 1 | `position` | `<h3>` | `.entry h3` |
+| 2 | `company` | `<p>` | `.entry p:nth-of-type(1)` |
+| 3 | `location` | `<p>` | `.entry p:nth-of-type(2)` |
+| 4 | `start_date` | `<p>` | `.entry p:nth-of-type(3)` |
+| 5 | `end_date` | `<p>` | `.entry p:nth-of-type(4)` |
+| 6 | `description` | `<ul><li>` | `.entry li` |
+
+`description` is `str | list[str]`: as a list it becomes a `<ul>` and the indices above
+hold; as a plain string it becomes a fifth `<p>` instead.
+
+The test that guards this order is the one place that must **not** derive from the
+model. Presence tests should iterate `model_fields` so they survive format changes;
+an order test that does the same follows any reordering and asserts nothing. Write the
+expected sequence out explicitly.
 
 ### Where rendering hints live
 

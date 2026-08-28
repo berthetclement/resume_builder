@@ -1,8 +1,7 @@
-from pathlib import Path
+from itertools import pairwise
 
 from resume_builder.models.resume_model import Resume
 from resume_builder.template.constants import CONTACT_SECTION_TITLE, WORK_EXPERIENCE_TITLE_NAME
-from resume_builder.template.markdown_editor import write_model_to_markdown
 
 """Pin the Markdown contract that `write_model_to_markdown` produces.
 
@@ -21,12 +20,26 @@ and assert nothing.
 
 
 # ----helper track Pydantic "section" tag with ("{#id}")
+def _find_next_section(lines: list[str], start: int) -> int:
+    for i in range(start + 1, len(lines)):
+        if lines[i].startswith("{#"):
+            return i
+
+    return len(lines)
+
+
 def _section_lines(content: str, section_name: str) -> list[str]:
     """Lines from section {#section_name}, until the next."""
     lines = content.splitlines()
     start = lines.index(f"{{#{section_name}}}")
-    end = next((i for i in range(start + 1, len(lines)) if lines[i].startswith("{#")), len(lines))
+    end = _find_next_section(lines, start)
     return lines[start:end]
+
+
+# ----helper track plain text content
+def _is_plain_text(line: str) -> bool:
+    """A line that would merge into the previous paragraph — not a heading, bullet or fence."""
+    return bool(line) and not line.startswith(("#", "- ", ":::", "{#"))
 
 
 # test building section according to Pydantic fields
@@ -44,7 +57,7 @@ def test_each_field_gets_its_own_section(default_markdown_resume_content: str) -
     assert lines.count("::: section") == len(Resume.model_fields)
 
 
-# test title field construction by Pydantic
+# test title field parameter construction by Pydantic
 def test_section_title_comes_from_field_title(default_markdown_resume_content: str) -> None:
     # then
     lines = default_markdown_resume_content.splitlines()
@@ -68,36 +81,72 @@ def test_heading_hint_drives_the_level(default_resume: Resume, default_markdown_
     assert f"### {default_resume.experiences[0].position}" in lines  # MarkdownH3
 
 
-# TODO old test
-def test_write_model_to_markdown(tmp_path: Path, default_resume: Resume) -> None:
-    # when
-    write_model_to_markdown(default_resume, tmp_path / "test_resume.md")
+# test blank lines necessary for Markdown plugin to not disturbing CommonMark rules
+def test_fields_are_separated_by_blank_lines(default_markdown_resume_content: str) -> None:
+    # then — only two consecutive plain-text lines merge into a single <p>, and no
+    # stylesheet can split them again. Headings and bullets interrupt paragraphs.
+    for field_name in Resume.model_fields:
+        body = _section_lines(default_markdown_resume_content, field_name)
+
+        for previous, current in pairwise(body):
+            assert not (_is_plain_text(previous) and _is_plain_text(current)), (
+                f"{field_name}: {previous!r} then {current!r} would merge into one paragraph"
+            )
+
+
+def test_generated_markdown_is_evenly_spaced(default_markdown_resume_content: str) -> None:
+    """Ergonomics: the generated file is meant to be opened and hand-edited.
+
+    Every content line gets its own blank line, uniformly — including after headings,
+    where CommonMark would not require it. If this fails, the output just got denser;
+    update the expectation if the spacing changed on purpose.
+    """
+    for field_name in Resume.model_fields:
+        body = _section_lines(default_markdown_resume_content, field_name)[2:]
+
+        for previous, current in pairwise(body):
+            if previous and current:
+                assert previous.startswith("- ") and current.startswith("- ")
+
+
+# "Experience" is only section who need a strict positioning to be used then by CSS
+def test_experience_fields_appear_in_the_imposed_order(
+    default_resume: Resume, default_markdown_resume_content: str
+) -> None:
+    """The order is the contract — CSS addresses these lines by position."""
+    # given
+    entry = default_resume.experiences[0]
+    section = _section_lines(default_markdown_resume_content, "experiences")
 
     # then
-    assert (tmp_path / "test_resume.md").exists()
+    expected = [
+        f"### {entry.position}",
+        entry.company,
+        entry.location,
+        entry.start_date,
+        entry.end_date,
+    ]
+    positions = [section.index(line) for line in expected]
 
-    # check markdown content is in line with the model data
-    content = (tmp_path / "test_resume.md").read_text(encoding="utf-8")
+    assert positions == sorted(positions)
 
-    # main sections
-    assert "{#main}" in content
-    assert "{#contact}" in content
-    assert "{#experiences}" in content
+    # field "description" is at the end
+    assert section.index(f"- {entry.description[0]}") > positions[-1]
 
-    # track markdown "container_plugin" ("section")
-    assert "::: section" in content
 
-    # check contact details
-    assert "John Doe" in content
-    assert "john.doe@example.com" in content
-    assert "123-456-7890" in content
+def test_every_model_value_reaches_the_file(default_resume: Resume, default_markdown_resume_content: str) -> None:
+    """Presence, not format: every value the model holds must land in its own section.
 
-    # every experience value reaches the file — derived from the model, so this
-    # survives formatting changes but still fails if an entry renders empty
-    for entry in default_resume.experiences:
-        for value in entry.model_dump().values():
-            if isinstance(value, list):
-                for item in value:
-                    assert str(item) in content
-            else:
-                assert str(value) in content
+    Derived from the model on purpose — it survives every formatting change, but still
+    fails if a section renders empty or a value lands in the wrong one.
+    """
+    for field_name in Resume.model_fields:
+        body = "\n".join(_section_lines(default_markdown_resume_content, field_name))
+
+        section_value = getattr(default_resume, field_name)
+        items = section_value if isinstance(section_value, list) else [section_value]
+
+        for item in items:
+            for value in item.model_dump().values():
+                for leaf in value if isinstance(value, list) else [value]:
+                    assert str(leaf) in body, f"{field_name}: {leaf!r} is missing"

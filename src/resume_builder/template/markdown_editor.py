@@ -27,7 +27,9 @@ def _render_entry(model: BaseModel) -> list[str]:
             else:
                 lines.append(str(value))
 
-        lines.append("")  # Add a blank line after each field for better Markdown formatting
+        # every field on its own paragraph — and a readable file to hand-edit
+        # not necessary for CommonMark except to separate two strings
+        lines.append("")
 
     return lines
 
@@ -77,7 +79,7 @@ def _render_section(model: BaseModel, section_name: str, section_title_value: st
             else:
                 lines.append(str(value))
 
-        lines.append("")
+        lines.append("")  # Add blank for a readable file to hand-edit
 
     # [FOOTER LINES] : Close the section for the "attrs_block_plugin"
     lines.extend(

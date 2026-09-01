@@ -5,6 +5,7 @@ CONTENT_KEY = "content"
 
 # CSS class set on the <div> wrapping each entry (see render/entries.py)
 ENTRY_CLASS = "entry"
+ENTRY_HEADING_LEVEL = 3
 
 # markdown-it token types read by the entry-wrapping transform
 CONTAINER_OPEN = "container_section_open"

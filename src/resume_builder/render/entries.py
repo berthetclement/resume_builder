@@ -1,4 +1,4 @@
-"""Group each heading and the content below it into a wrapper ``<div>``.
+"""Group each entry heading level (h3) and the content below it into a wrapper ``<div>``.
 
 Mirrors what Pandoc's ``--section-divs`` gives pagedown for free: the Markdown
 stays bare (a heading followed by plain lines, no containers, no classes) while
@@ -18,13 +18,14 @@ from resume_builder.render.constants import (
     CONTAINER_OPEN,
     ENTRY_CLASS,
     ENTRY_CLOSE,
+    ENTRY_HEADING_LEVEL,
     ENTRY_OPEN,
     HEADING_OPEN,
 )
 
 
 def _heading_level(token: Token) -> int:
-    """Return the numeric level of a ``heading_open`` token (``h2`` -> ``2``)."""
+    """Return the numeric level of a ``heading_open`` token (``h3`` -> ``3``)."""
     return int(token.tag[1:])
 
 
@@ -59,18 +60,11 @@ def _find_container_close(tokens: list[Token], start: int) -> int | None:
 
 
 def _wrap_container_body(body: list[Token]) -> list[Token]:
-    """Wrap each top-level heading of `body` (plus its content) in an entry div.
+    """Wrap each level 3 (h3) heading in the `body` (along with its content) in an `div` entry tag.
 
-    The entry level is the shallowest heading level present, so a section built
-    from ``# company`` / ``## position`` pairs breaks on the ``h1`` and keeps the
-    ``h2`` and the lines under it inside the same entry. A body with no heading
-    at all (`contact`) is returned untouched.
+    The current convention is to use one one entry per h3 heading found
     """
-    levels = [_heading_level(token) for token in body if token.type == HEADING_OPEN]
-    if not levels:
-        return body
-
-    entry_level = min(levels)
+    entry_level = ENTRY_HEADING_LEVEL
     wrapped: list[Token] = []
     in_entry = False
 
@@ -89,7 +83,7 @@ def _wrap_container_body(body: list[Token]) -> list[Token]:
 
 
 def wrap_entries(tokens: list[Token]) -> list[Token]:
-    """Add an entry ``<div>`` around each heading-led block inside every section.
+    """Add an entry ``<div>`` around each heading-level 3 (h3) inside every section.
 
     Only the bodies of ``::: section`` containers are rewritten; tokens outside a
     container are passed through unchanged.

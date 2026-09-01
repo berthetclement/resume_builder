@@ -13,6 +13,15 @@ from resume_builder.render.entries import wrap_entries
 _env = Environment(loader=PackageLoader("resume_builder.render", "templates"))
 
 
+def build_parser() -> MarkdownIt:
+    return (
+        MarkdownIt("commonmark", {"html": True})
+        .use(front_matter_plugin)
+        .use(attrs_block_plugin)
+        .use(container_plugin, "section")
+    )
+
+
 def render_resume(md_path: Path, output_path: Path) -> None:
     """Render a Markdown resume file into a standalone HTML file.
 
@@ -33,12 +42,7 @@ def render_resume(md_path: Path, output_path: Path) -> None:
     if not text.strip():
         raise ValueError(f"{md_path} is empty")
 
-    md = (
-        MarkdownIt("commonmark", {"html": True})
-        .use(front_matter_plugin)
-        .use(attrs_block_plugin)
-        .use(container_plugin, "section")
-    )
+    md = build_parser()
     env: dict[str, object] = {}
     tokens = md.parse(text, env)
 

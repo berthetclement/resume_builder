@@ -60,9 +60,8 @@ def _find_container_close(tokens: list[Token], start: int) -> int | None:
 
 
 def _wrap_container_body(body: list[Token]) -> list[Token]:
-    """Wrap each level 3 (h3) heading in the `body` (along with its content) in an `div` entry tag.
-
-    The current convention is to use one one entry per h3 heading found
+    """
+    The current convention is to use one entry per h3 heading found in an `div` entry tag.
     """
     entry_level = ENTRY_HEADING_LEVEL
     wrapped: list[Token] = []

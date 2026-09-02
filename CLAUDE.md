@@ -1,18 +1,168 @@
 # resume-builder
 
-Python lib to generate resumes (Markdown -> HTML/PDF).
+Python lib to generate resumes (Markdown -> HTML/PDF), modeled on R's **pagedown**.
 
-## Design inspiration
+Keep this file **normative and stable**: conventions, stack, commands. If a sentence
+goes stale the moment you commit, it does not belong here — put transient status in
+the branch, and reasoning in `claude_private/`.
 
-Modeled on R's **pagedown** package: write a resume in Markdown, render it to a paginated HTML page, export that to PDF. Pandoc (which pagedown uses) bundles Markdown parsing, YAML frontmatter parsing, and templating into one tool; this project deliberately composes separate, pure-Python libraries instead, to stay a plain `pip install` with no external binary dependency:
+## Code review
 
-| Job | pagedown/Pandoc | resume-builder |
+When reviewing code:
+- Design: does this fit the existing architecture, not fight it.
+- Functionality: does it actually do what it claims, including edge cases.
+- Complexity: could this be simpler.
+- Tests: real coverage, not padding — flag missing tests and weakened/removed assertions.
+- Naming: clear, PEP8-compliant, no collisions with existing names.
+- Consistency: matches existing patterns and conventions in the repo.
+- Verify library/API behavior before trusting it — don't assume.
+- Reuse existing utilities before adding new ones.
+- No abstractions without a concrete, current benefit.
+- Decisions made in discussion must land in the code, its tests or this file. A choice
+  that lives only in a conversation is lost.
+
+## Conventions
+
+The contract between the Markdown, the model and the CSS. Everything here is
+deliberate — see `claude_private/pagedown-notes.md` for why. The code is not fully
+aligned with it yet; the remaining gaps are tracked in
+`claude_private/pipeline-schema.md`.
+
+### Heading levels — exactly three, fixed meaning
+
+| Level | Meaning | Where it comes from |
 |---|---|---|
-| Parse Markdown | Pandoc's own reader | `markdown-it-py` |
-| Parse YAML frontmatter | Pandoc's reader (built in) | `pyyaml` |
-| Stitch content + metadata into HTML | Pandoc's own template engine | `Jinja2` |
-| Pagination | `paged.js` | `paged.js` (same tool) |
-| HTML → PDF | headless Chrome print | Playwright (headless Chromium) |
+| `#` | document title (the person's name) | `MarkdownH1` hint on `Main.user_name` |
+| `##` | section title (`Contact Information`, `WORK EXPERIENCE`) | `Field(title=...)` on the `Resume` field |
+| `###` | entry title — **opens an `.entry` box** | `MarkdownH3` hint on the entry's first field (`Experience.position`, `Main.title_position`) |
+
+`main` is the only exception, and it needs no special-casing in code: it has no
+`Field(title=...)` (so no `##` is emitted) and it is the only section holding the `#`.
+
+### Section markup
+
+One `::: section` per `Resume` field, `id` = the field name:
+
+```markdown
+{#experiences}
+::: section
+## WORK EXPERIENCE
+
+### Consultant Data Scientist
+
+Acme Corp
+
+Paris, France
+
+2021
+
+2022
+
+- Led the R package chain.
+- Released to CRAN.
+
+:::
+```
+
+The line order inside the entry is not free — see "Entry field order" below. A list
+field renders as `- item` lines; every other field renders as one bare line.
+
+- `{#id}` must be **on its own line, immediately before** the block it targets.
+  Pandoc/pagedown's trailing form (`## Title {#id}`) does *not* work with
+  `attrs_block_plugin`.
+- The container wraps the *whole* section, heading included — CSS Grid treats every
+  direct child of the grid container as its own item, so the heading and its content
+  must move as one unit.
+- **One blank line between every field.** This is load-bearing, not cosmetic:
+  CommonMark merges adjacent lines into a single `<p>`, and no stylesheet can pull
+  them apart afterwards.
+
+### Entry boxes
+
+`wrap_entries()` (`render/entries.py`) inserts `<div class="entry">` at every `###`
+inside a `::: section`, closing it at the next `###` or at the end of the container.
+
+- The level is **absolute** (`h3`), never inferred from what the section happens to
+  contain. Relative heuristics were tried and break on titled sections.
+- A section with no `###` gets no entry (`contact`, `skills`). That is correct, not a
+  gap.
+- `main`'s `###` (the job headline) also produces an entry. Intentional — it mirrors
+  pagedown's `--section-divs`, and `break-inside: avoid` keeping the headline with its
+  paragraph is desirable.
+- The box is required: `break-inside: avoid` needs an element, and positional
+  selectors must count *within* an entry, not across the whole section.
+
+### Entry field order
+
+Inside an entry, **position is meaning**. The stylesheet addresses fields by index, so
+the declaration order of a model's fields is a public contract, not an implementation
+detail: reordering them silently restyles the wrong thing, and neither mypy nor a
+presence-based test will notice.
+
+This is pagedown's own contract made explicit. It does the same thing — `ps[0]` place,
+`ps[1]` location, `ps[2]` date — but only inside an inline script, discoverable by
+reading the source. Here it is written down and pinned by a test.
+
+`Experience` renders as:
+
+| Order | Field | Element | Selector |
+|---|---|---|---|
+| 1 | `position` | `<h3>` | `.entry h3` |
+| 2 | `company` | `<p>` | `.entry p:nth-of-type(1)` |
+| 3 | `location` | `<p>` | `.entry p:nth-of-type(2)` |
+| 4 | `start_date` | `<p>` | `.entry p:nth-of-type(3)` |
+| 5 | `end_date` | `<p>` | `.entry p:nth-of-type(4)` |
+| 6 | `description` | `<ul><li>` | `.entry li` |
+
+`description` is `str | list[str]`: as a list it becomes a `<ul>` and the indices above
+hold; as a plain string it becomes a fifth `<p>` instead.
+
+The test that guards this order is the one place that must **not** derive from the
+model. Presence tests should iterate `model_fields` so they survive format changes;
+an order test that does the same follows any reordering and asserts nothing. Write the
+expected sequence out explicitly.
+
+### Where rendering hints live
+
+Two different things, two different homes — do not mix them:
+
+- **Data** rendered as a heading → `Annotated` + `Field(json_schema_extra=...)`, via the
+  `MarkdownH1`/`MarkdownH3` aliases in `models/resume_model.py`. Use `json_schema_extra`,
+  never bare `Field(..., markdown=...)` — deprecated in pydantic v2, removed in v3.
+- **Labels** (section titles) → native `Field(title=...)`, read back via
+  `model_fields[name].title`.
+
+The rule that decides: `Field(title=...)` is fixed at class-definition time and shared
+by every instance, so it can only ever hold a label. Anything that varies per resume is
+data and belongs in a field.
+
+### CSS
+
+Every section div carries both its `id` and `class="section"`, so levels never collide
+across sections — `#contact h2` and `#experiences h2` are styled independently, and
+`#experiences .entry p:nth-of-type(1)` addresses one job's first line.
+
+## Architecture
+
+`Resume` (pydantic) → `write_model_to_markdown()` generates a starter `.md` → the user
+hand-edits it → `render_resume()` parses that file directly into HTML via Jinja2 →
+`paged.js` → Playwright → PDF.
+
+pydantic appears only on the way *out*. Rendering never parses the user's edited
+Markdown back into a strict model — it walks the token stream directly, same as
+pagedown/Pandoc.
+
+`MarkdownIt` is configured with `.use(front_matter_plugin).use(attrs_block_plugin)
+.use(container_plugin, "section")`. The Jinja2 template is a real file
+(`render/templates/resume.html.j2`, loaded via `PackageLoader`) — hatchling ships
+non-`.py` files under `src/resume_builder/` in the wheel automatically.
+
+Tests live in `tests/`, mirroring the `src/resume_builder/` package structure.
+
+Deeper notes live in `claude_private/`, which is gitignored — a fresh clone will not
+have it, and everything normative is in this file instead. Locally: `pipeline-schema.md` (the two axes, Markdown-based
+and the deferred app-based one), `pagedown-notes.md` (why the conventions are what they
+are), `css-layout-notes.md`, `devops-setup.md`, `project-goals.md`.
 
 ## Stack
 
@@ -41,21 +191,3 @@ uv run pytest                              # run tests
 uv run pytest --cov=resume_builder --cov-report=term-missing tests/ # coverage
 uv run tox -p                              # run the full matrix (py311/py312/py313/lint/type) in parallel, local dev only (CI runs it sequentially, see below)
 ```
-
-## Current state
-
-DevOps scaffolding is done (pre-commit, ruff, mypy strict, pytest, tox, CI, hatch-vcs) per the "no feature before a complete lib setup" principle. Business logic is in progress on branch `poc/markdown-render` (not yet merged):
-
-- `src/resume_builder/models/` — `pydantic` `Resume`/`contact`/`experience` models, still being iterated on, not the final shape.
-- `src/resume_builder/template/markdow_editor.py` — `write_model_to_markdown()` (generates a starter `.md` from a `Resume` instance) and `init_resume()` (writes it to a target directory, refuses to overwrite an existing file unless `force=True`). The generated `.md` also gets a commented-out `YAML_FRONT_MATTER` hint (`template/constants.py`) showing how to add a `css:` block — real, valid, inert frontmatter (all lines commented via `#`) rather than a plain-text note, so it's immediately usable by uncommenting.
-
-Tests live in `tests/`, mirroring the `src/resume_builder/` package structure (e.g. `tests/models/` for `src/resume_builder/models/`).
-
-Two planned ways to build a resume (see "Design inspiration" above for the pagedown reasoning):
-
-- **Markdown-based** (current focus): `Resume` model → `write_model_to_markdown()` generates a starter `.md` → user hand-edits it directly (data, CSS/JS) → `markdown-it-py` parses that edited file *directly* into HTML via a Jinja2 template → `paged.js` pagination → Playwright → PDF. The pydantic model is only used to generate the template — rendering never parses the user's edited Markdown back into a strict model; it walks the parsed Markdown directly, same as pagedown/Pandoc.
-  - `render_resume()` (`src/resume_builder/render/renderer.py`) does the actual `.md` → `.html` conversion. Done, tested (not-found, empty-file, css-frontmatter, full happy path), and working end to end (minus `paged.js`/PDF, still later steps). Validates its input first: raises `FileNotFoundError` if `md_path` doesn't exist, `ValueError` if it's empty.
-  - `MarkdownIt` is configured with `.use(front_matter_plugin).use(attrs_block_plugin)`. `front_matter_plugin` extracts the `css`/`js` YAML block (parsed via `pyyaml`). `attrs_block_plugin` gives each `## field` section a real `id` matching the field name (e.g. `id="contact"`) — needed so a future default/user CSS can target specific sections.
-  - Important syntax constraint: `attrs_block_plugin` only recognizes a `{#id}` block when it's **on its own line, immediately before** the block it targets (`{#contact}` then `## contact` on the next line) — trailing on the same line as the heading (pagedown/Pandoc's convention) does not work with this plugin. `write_model_to_markdown()` generates this two-line form.
-  - The Jinja2 template itself is a real file, `src/resume_builder/render/templates/resume.html.j2`, loaded via `jinja2.PackageLoader("resume_builder.render", "templates")` — not a Python string constant. Confirmed hatchling ships non-`.py` files under `src/resume_builder/` in the wheel automatically, no extra packaging config needed.
-- **App-based** (deferred, not started): a future app builds resume data directly (no `.md` involved) and feeds into the same render step as above.

@@ -1,0 +1,173 @@
+from pathlib import Path
+
+from pydantic import BaseModel
+
+from resume_builder.models.constants import CUSTOM_FIELD, HEADER2, MARKDOWN_HEADERS
+from resume_builder.template.constants import YAML_FRONT_MATTER
+from resume_builder.template.default_resume import DEFAULT_RESUME
+
+
+def _render_entry(model: BaseModel) -> list[str]:
+    lines = []
+    for field_name, field_info in type(model).model_fields.items():
+        # value of flat field
+        value = getattr(model, field_name)
+
+        # extract the custom field metadata
+        extra = field_info.json_schema_extra
+        markdown_header = extra.get(CUSTOM_FIELD) if isinstance(extra, dict) else None
+
+        if markdown_header in MARKDOWN_HEADERS:
+            lines.append(f"{MARKDOWN_HEADERS[markdown_header]} {value}")
+        else:
+            # Default to a simple string if no model specification or list of strings
+            if isinstance(value, list):
+                for line in value:
+                    lines.append(f"- {line}")
+            else:
+                lines.append(str(value))
+
+        # every field on its own paragraph — and a readable file to hand-edit
+        # not necessary for CommonMark except to separate two strings
+        lines.append("")
+
+    return lines
+
+
+def _render_section(model: BaseModel, section_name: str, section_title_value: str | None) -> list[str]:
+    """
+    Renders a Pydantic BaseModel instance as a Markdown section.
+    Args:
+        model (BaseModel): The Pydantic model instance to render.
+        section_name (str): The name of the section, used for the "attrs_block_plugin".
+        section_title_value (str): The value of header section (convention `MarkdownH2`).
+        Returns:
+            list[str]: The rendered Markdown lines for the section.
+    """
+    # [HEADER LINES] : Meta information for the "attrs_block_plugin" to identify the section
+    attrs_block_content = f"{{#{section_name}}}"
+    attrs_container_section_content_start = "::: section"
+    attrs_container_section_content_end = ":::"
+
+    lines = [
+        attrs_block_content,
+        attrs_container_section_content_start,
+    ]
+
+    # Convention header section
+    if section_title_value is not None:
+        lines.append(f"{MARKDOWN_HEADERS[HEADER2]} {section_title_value}")
+        lines.append("")
+
+    # [BODY] : Append each field of the model as a Markdown line
+    # Use the model's field metadata to determine if a field should be rendered as a Markdown header
+    for field_name, field_info in type(model).model_fields.items():
+        # Flat value of the field
+        value = getattr(model, field_name)
+
+        # extract the custom field metadata
+        extra = field_info.json_schema_extra
+        markdown_header = extra.get(CUSTOM_FIELD) if isinstance(extra, dict) else None
+
+        if markdown_header in MARKDOWN_HEADERS:
+            lines.append(f"{MARKDOWN_HEADERS[markdown_header]} {value}")
+        else:
+            # Default to a simple string if no model specification or list of strings
+            if isinstance(value, list):
+                for line in value:
+                    lines.append(f"- {line}")
+            else:
+                lines.append(str(value))
+
+        lines.append("")  # Add blank for a readable file to hand-edit
+
+    # [FOOTER LINES] : Close the section for the "attrs_block_plugin"
+    lines.extend(
+        [
+            attrs_container_section_content_end,
+            "",
+        ]
+    )
+
+    return lines
+
+
+def _render_section_entries(entries: list[BaseModel], section_name: str, section_title_value: str | None) -> list[str]:
+    """
+    Renders a list of Pydantic BaseModel instances as a Markdown section.
+    Args:
+        entries (list[BaseModel]): The list of Pydantic model instances to render.
+        section_name (str): The name of the section, used for the "attrs_block_plugin".
+        section_title_value (str): The value of header section (convention `MarkdownH2`).
+    Returns:
+        list[str]: The rendered Markdown lines for the section.
+    """
+    # [HEADER LINES]
+    attrs_block_content = f"{{#{section_name}}}"
+    attrs_container_section_content_start = "::: section"
+    attrs_container_section_content_end = ":::"
+
+    lines = [
+        attrs_block_content,
+        attrs_container_section_content_start,
+    ]
+
+    # Convention header section
+    if section_title_value is not None:
+        lines.append(f"{MARKDOWN_HEADERS[HEADER2]} {section_title_value}")
+        lines.append("")
+
+    # [BODY] : Append each entry in the list as a Markdown sub-section
+    for item in entries:
+        lines.extend(_render_entry(item))
+
+    # [FOOTER LINES]
+    lines.extend(
+        [
+            attrs_container_section_content_end,
+            "",
+        ]
+    )
+
+    return lines
+
+
+def write_model_to_markdown(model: BaseModel, file_path: Path) -> None:
+    """
+    Writes a Pydantic BaseModel instance to a Markdown file.
+    """
+    # [HEADER] : Add YAML front matter for optional custom styling
+    lines = [YAML_FRONT_MATTER]
+    lines.append("")
+
+    # [BODY] : Render each field of the model as a Markdown section
+    for field_name in type(model).model_fields:
+        value = getattr(model, field_name)
+
+        # check/extract Field "title" parameters
+        title = type(model).model_fields[field_name].title
+
+        if isinstance(value, BaseModel):
+            lines.extend(_render_section(model=value, section_name=field_name, section_title_value=title))
+        else:
+            lines.extend(_render_section_entries(entries=value, section_name=field_name, section_title_value=title))
+
+    file_path.write_text("\n".join(lines), encoding="utf-8")
+
+
+def init_resume(
+    target_dir: Path = Path("."),
+    filename: str = "resume.md",
+    force: bool = False,
+) -> Path:
+    """
+    Initializes a new resume Markdown file in the specified directory.
+    """
+    target_dir.mkdir(parents=True, exist_ok=True)
+    resume_path = target_dir / filename
+
+    if resume_path.exists() and not force:
+        raise FileExistsError(f"{resume_path} already exists — pass force=True to overwrite")
+
+    write_model_to_markdown(DEFAULT_RESUME, resume_path)
+    return resume_path

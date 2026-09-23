@@ -7,13 +7,11 @@ TITLE_POSITION_VALUE = LAST_POSITION
 DESCRIPTION_MAIN_VALUE = "Experienced software engineer with a passion for developing innovative programs."
 
 # Contact part
-CONTACT_SECTION_TITLE = "Contact Information"
 EMAIL = "john.doe@example.com"
 PHONE = "123-456-7890"
 PERSONAL_WEBSITE = "https://johndoe.com"
 
 # Work experience part
-WORK_EXPERIENCE_TITLE_NAME = "WORK EXPERIENCE"
 EXPERIENCES = [
     {
         "company": "Acme Corp",

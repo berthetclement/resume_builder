@@ -7,7 +7,8 @@ from mdit_py_plugins.attrs import attrs_block_plugin
 from mdit_py_plugins.container import container_plugin
 from mdit_py_plugins.front_matter import front_matter_plugin
 
-from resume_builder.render.constants import CONTAINER_NAME_SECTION, CONTENT_KEY, CSS_KEY, JS_KEY
+from resume_builder.conventions import CONTAINER_NAME
+from resume_builder.render.constants import CONTENT_KEY, CSS_KEY, JS_KEY
 from resume_builder.render.entries import wrap_entries
 
 _env = Environment(loader=PackageLoader("resume_builder.render", "templates"))
@@ -18,7 +19,7 @@ def build_parser() -> MarkdownIt:
         MarkdownIt("commonmark", {"html": True})
         .use(front_matter_plugin)
         .use(attrs_block_plugin)
-        .use(container_plugin, CONTAINER_NAME_SECTION)
+        .use(container_plugin, CONTAINER_NAME)
     )
 
 

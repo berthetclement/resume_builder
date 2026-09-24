@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from resume_builder.template.markdown_editor import init_resume
+from resume_builder.template.markdown_writer import init_resume
 
 
 def test_init_resume_default(tmp_path: Path) -> None:

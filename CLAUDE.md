@@ -28,13 +28,11 @@ deliberate — see `claude_private/pagedown-notes.md` for why. The code is not f
 aligned with it yet; the remaining gaps are tracked in
 `claude_private/pipeline-schema.md`.
 
-Its executable form is `src/resume_builder/conventions.py`: a leaf module that imports
-nothing and is read by `models/`, `template/` and `render/` alike. Anything below that
-has a name in code lives there, so the writer and the parser can never drift apart.
-Functions are welcome in it as long as they stay pure and talk only about the format —
-`anchor()` is a constant with a hole in it, `heading_marker()` reads a level back out of
-untyped metadata. A helper that needs `FieldInfo`, `BaseModel`, `Token` or a `Path` is
-not a convention: it belongs to `template/` or `render/`.
+Its executable form is `src/resume_builder/conventions.py`, a leaf module that imports
+nothing and is read by `models/`, `template/` and `render/` alike — so the writer and
+the parser cannot drift apart. It may hold functions as long as they stay pure and talk
+only about the format; anything needing `FieldInfo`, `BaseModel`, `Token` or a `Path`
+belongs to `template/` or `render/` instead.
 
 ### Heading levels — exactly three, fixed meaning
 
@@ -130,17 +128,16 @@ model. Presence tests should iterate `model_fields` so they survive format chang
 an order test that does the same follows any reordering and asserts nothing. Write the
 expected sequence out explicitly.
 
-### Where rendering hints live
+### Where the heading hints live
 
 Two different things, two different homes — do not mix them:
 
-- **Data** rendered as a heading → `Annotated` + `Field(json_schema_extra=...)`, via the
+- **Data** written as a heading → `Annotated` + `Field(json_schema_extra=...)`, via the
   `MarkdownH1`/`MarkdownH3` aliases in `models/resume_model.py`. Use `json_schema_extra`,
   never bare `Field(..., markdown=...)` — deprecated in pydantic v2, removed in v3.
-  The stored value is the heading **level** as an `int` (`{CUSTOM_FIELD: 3}`), never the
-  markup: pydantic types that metadata as arbitrary JSON, so `conventions.heading_marker()`
-  is the one place that turns it back into `###` and rejects anything else. There is no
-  `MarkdownH2` on purpose — see the next bullet.
+  The stored value is the heading **level** as an `int`, never the markup: pydantic types
+  that metadata as arbitrary JSON, so `heading_marker()` is the single place that turns it
+  back into `#`/`##`/`###` and rejects anything else. There is no `MarkdownH2`: see below.
 - **Labels** (section titles) → native `Field(title=...)`, read back via
   `model_fields[name].title`. The `##` never comes from an `Annotated` hint.
 
@@ -165,11 +162,11 @@ Markdown back into a strict model — it walks the token stream directly, same a
 pagedown/Pandoc.
 
 `MarkdownIt` is configured with `.use(front_matter_plugin).use(attrs_block_plugin)
-.use(container_plugin, CONTAINER_NAME)`. That one constant drives three things at once,
-which is why it is shared rather than retyped: the keyword required on the opening fence
-(`::: section`), the token types emitted (`container_section_open`/`_close`), and the CSS
-class set on the rendered `<div>`. The closing fence carries markers only — the name is
-forbidden there, so `FENCE_OPEN` and `FENCE_CLOSE` are deliberately asymmetric.
+.use(container_plugin, CONTAINER_NAME)`. That one constant drives the keyword on the
+opening fence (`::: section`), the token types (`container_section_open`/`_close`) and
+the CSS class on the rendered `<div>` — hence shared, never retyped. The closing fence
+carries markers only: the name is forbidden there, so the open and close constants are
+deliberately asymmetric.
 
 The Jinja2 template is a real file
 (`render/templates/resume.html.j2`, loaded via `PackageLoader`) — hatchling ships

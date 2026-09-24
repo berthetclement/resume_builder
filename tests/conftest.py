@@ -4,7 +4,7 @@ import pytest
 
 from resume_builder.models.resume_model import Resume
 from resume_builder.template.default_resume import DEFAULT_RESUME
-from resume_builder.template.markdown_editor import write_model_to_markdown
+from resume_builder.template.markdown_writer import write_model_to_markdown
 
 
 # Instance of Pydantic base model

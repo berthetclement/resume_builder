@@ -2,23 +2,18 @@ from typing import Annotated
 
 from pydantic import BaseModel, Field
 
-from resume_builder.models.constants import CUSTOM_FIELD, HEADER1, HEADER2, HEADER3
-from resume_builder.template.constants import CONTACT_SECTION_TITLE, WORK_EXPERIENCE_TITLE_NAME
+from resume_builder.conventions import CUSTOM_FIELD
+from resume_builder.models.constants import CONTACT_SECTION_TITLE, EXPERIENCES_SECTION_TITLE
 
 # Hierarchy of Markdown headers
 MarkdownH1 = Annotated[
     str,
-    Field(json_schema_extra={CUSTOM_FIELD: HEADER1}),
-]
-
-MarkdownH2 = Annotated[
-    str,
-    Field(json_schema_extra={CUSTOM_FIELD: HEADER2}),
+    Field(json_schema_extra={CUSTOM_FIELD: 1}),
 ]
 
 MarkdownH3 = Annotated[
     str,
-    Field(json_schema_extra={CUSTOM_FIELD: HEADER3}),
+    Field(json_schema_extra={CUSTOM_FIELD: 3}),
 ]
 
 
@@ -50,4 +45,4 @@ class Experience(BaseModel):
 class Resume(BaseModel):
     main: Main
     contact: Contact = Field(title=CONTACT_SECTION_TITLE)
-    experiences: list[Experience] = Field(title=WORK_EXPERIENCE_TITLE_NAME)
+    experiences: list[Experience] = Field(title=EXPERIENCES_SECTION_TITLE)

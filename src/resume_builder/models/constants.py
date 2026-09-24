@@ -1,12 +1,3 @@
-CUSTOM_FIELD = "markdown"
+CONTACT_SECTION_TITLE = "Contact Information"
 
-# Convetions for Markdown headers
-HEADER1 = "h1"
-HEADER2 = "h2"
-HEADER3 = "h3"
-
-MARKDOWN_HEADERS = {
-    HEADER1: "#",
-    HEADER2: "##",
-    HEADER3: "###",
-}
+EXPERIENCES_SECTION_TITLE = "WORK EXPERIENCE"

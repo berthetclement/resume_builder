@@ -1,7 +1,7 @@
 from itertools import pairwise
 
+from resume_builder.models.constants import CONTACT_SECTION_TITLE, EXPERIENCES_SECTION_TITLE
 from resume_builder.models.resume_model import Resume
-from resume_builder.template.constants import CONTACT_SECTION_TITLE, WORK_EXPERIENCE_TITLE_NAME
 
 """Pin the Markdown contract that `write_model_to_markdown` produces.
 
@@ -63,7 +63,7 @@ def test_section_title_comes_from_field_title(default_markdown_resume_content: s
     lines = default_markdown_resume_content.splitlines()
 
     assert f"## {CONTACT_SECTION_TITLE}" in lines
-    assert f"## {WORK_EXPERIENCE_TITLE_NAME}" in lines
+    assert f"## {EXPERIENCES_SECTION_TITLE}" in lines
 
 
 def test_main_has_no_section_title(default_markdown_resume_content: str) -> None:

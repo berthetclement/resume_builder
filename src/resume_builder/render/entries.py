@@ -13,14 +13,14 @@ within one entry.
 
 from markdown_it.token import Token
 
+from resume_builder.conventions import ENTRY_HEADING_LEVEL
 from resume_builder.render.constants import (
-    CONTAINER_CLOSE,
-    CONTAINER_OPEN,
     ENTRY_CLASS,
-    ENTRY_CLOSE,
-    ENTRY_HEADING_LEVEL,
-    ENTRY_OPEN,
-    HEADING_OPEN,
+    TOKEN_CONTAINER_CLOSE,
+    TOKEN_CONTAINER_OPEN,
+    TOKEN_ENTRY_CLOSE,
+    TOKEN_ENTRY_OPEN,
+    TOKEN_HEADING_OPEN,
 )
 
 
@@ -30,29 +30,29 @@ def _heading_level(token: Token) -> int:
 
 
 def _entry_open() -> Token:
-    token = Token(ENTRY_OPEN, "div", 1)
+    token = Token(TOKEN_ENTRY_OPEN, "div", 1)
     token.block = True
     token.attrSet("class", ENTRY_CLASS)
     return token
 
 
 def _entry_close() -> Token:
-    token = Token(ENTRY_CLOSE, "div", -1)
+    token = Token(TOKEN_ENTRY_CLOSE, "div", -1)
     token.block = True
     return token
 
 
 def _find_container_close(tokens: list[Token], start: int) -> int | None:
-    """Index of the ``container_section_close`` matching the open token at `start`.
+    """Index of the ``TOKEN_CONTAINER_CLOSE`` matching the open token at `start`.
 
     Counts nesting so an inner container does not close the outer one. Returns
     ``None`` when the container is left unclosed.
     """
     depth = 0
     for index in range(start, len(tokens)):
-        if tokens[index].type == CONTAINER_OPEN:
+        if tokens[index].type == TOKEN_CONTAINER_OPEN:
             depth += 1
-        elif tokens[index].type == CONTAINER_CLOSE:
+        elif tokens[index].type == TOKEN_CONTAINER_CLOSE:
             depth -= 1
             if depth == 0:
                 return index
@@ -68,7 +68,7 @@ def _wrap_container_body(body: list[Token]) -> list[Token]:
     in_entry = False
 
     for token in body:
-        if token.type == HEADING_OPEN and _heading_level(token) == entry_level:
+        if token.type == TOKEN_HEADING_OPEN and _heading_level(token) == entry_level:
             if in_entry:
                 wrapped.append(_entry_close())
             wrapped.append(_entry_open())
@@ -99,7 +99,7 @@ def wrap_entries(tokens: list[Token]) -> list[Token]:
     while index < len(tokens):
         token = tokens[index]
 
-        if token.type != CONTAINER_OPEN:
+        if token.type != TOKEN_CONTAINER_OPEN:
             output.append(token)
             index += 1
             continue

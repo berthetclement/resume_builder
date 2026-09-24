@@ -2,7 +2,14 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-from resume_builder.models.constants import CUSTOM_FIELD, HEADER2, MARKDOWN_HEADERS
+from resume_builder.conventions import (
+    CUSTOM_FIELD,
+    FENCE_CLOSE,
+    FENCE_OPEN,
+    SECTION_TITLE_LEVEL,
+    anchor,
+    heading_marker,
+)
 from resume_builder.template.constants import YAML_FRONT_MATTER
 from resume_builder.template.default_resume import DEFAULT_RESUME
 
@@ -15,17 +22,14 @@ def _render_entry(model: BaseModel) -> list[str]:
 
         # extract the custom field metadata
         extra = field_info.json_schema_extra
-        markdown_header = extra.get(CUSTOM_FIELD) if isinstance(extra, dict) else None
+        marker = heading_marker(extra.get(CUSTOM_FIELD)) if isinstance(extra, dict) else None
 
-        if markdown_header in MARKDOWN_HEADERS:
-            lines.append(f"{MARKDOWN_HEADERS[markdown_header]} {value}")
+        if marker is not None:
+            lines.append(f"{marker} {value}")
+        elif isinstance(value, list):
+            lines.extend(f"- {line}" for line in value)
         else:
-            # Default to a simple string if no model specification or list of strings
-            if isinstance(value, list):
-                for line in value:
-                    lines.append(f"- {line}")
-            else:
-                lines.append(str(value))
+            lines.append(str(value))
 
         # every field on its own paragraph — and a readable file to hand-edit
         # not necessary for CommonMark except to separate two strings
@@ -40,23 +44,19 @@ def _render_section(model: BaseModel, section_name: str, section_title_value: st
     Args:
         model (BaseModel): The Pydantic model instance to render.
         section_name (str): The name of the section, used for the "attrs_block_plugin".
-        section_title_value (str): The value of header section (convention `MarkdownH2`).
+        section_title_value (str): The section title, read from Field(title=...).
         Returns:
             list[str]: The rendered Markdown lines for the section.
     """
-    # [HEADER LINES] : Meta information for the "attrs_block_plugin" to identify the section
-    attrs_block_content = f"{{#{section_name}}}"
-    attrs_container_section_content_start = "::: section"
-    attrs_container_section_content_end = ":::"
-
+    # [HEADER LINES] : attrs_block_plugin + container_plugin
     lines = [
-        attrs_block_content,
-        attrs_container_section_content_start,
+        anchor(section_name),
+        FENCE_OPEN,
     ]
 
     # Convention header section
     if section_title_value is not None:
-        lines.append(f"{MARKDOWN_HEADERS[HEADER2]} {section_title_value}")
+        lines.append(f"{heading_marker(SECTION_TITLE_LEVEL)} {section_title_value}")
         lines.append("")
 
     # [BODY] : Append each field of the model as a Markdown line
@@ -67,24 +67,21 @@ def _render_section(model: BaseModel, section_name: str, section_title_value: st
 
         # extract the custom field metadata
         extra = field_info.json_schema_extra
-        markdown_header = extra.get(CUSTOM_FIELD) if isinstance(extra, dict) else None
+        marker = heading_marker(extra.get(CUSTOM_FIELD)) if isinstance(extra, dict) else None
 
-        if markdown_header in MARKDOWN_HEADERS:
-            lines.append(f"{MARKDOWN_HEADERS[markdown_header]} {value}")
+        if marker is not None:
+            lines.append(f"{marker} {value}")
+        elif isinstance(value, list):
+            lines.extend(f"- {line}" for line in value)
         else:
-            # Default to a simple string if no model specification or list of strings
-            if isinstance(value, list):
-                for line in value:
-                    lines.append(f"- {line}")
-            else:
-                lines.append(str(value))
+            lines.append(str(value))
 
         lines.append("")  # Add blank for a readable file to hand-edit
 
-    # [FOOTER LINES] : Close the section for the "attrs_block_plugin"
+    # [FOOTER LINES] : container_plugin
     lines.extend(
         [
-            attrs_container_section_content_end,
+            FENCE_CLOSE,
             "",
         ]
     )
@@ -98,33 +95,29 @@ def _render_section_entries(entries: list[BaseModel], section_name: str, section
     Args:
         entries (list[BaseModel]): The list of Pydantic model instances to render.
         section_name (str): The name of the section, used for the "attrs_block_plugin".
-        section_title_value (str): The value of header section (convention `MarkdownH2`).
+        section_title_value (str): The section title, read from Field(title=...).
     Returns:
         list[str]: The rendered Markdown lines for the section.
     """
-    # [HEADER LINES]
-    attrs_block_content = f"{{#{section_name}}}"
-    attrs_container_section_content_start = "::: section"
-    attrs_container_section_content_end = ":::"
-
+    # [HEADER LINES] : attrs_block_plugin + container_plugin
     lines = [
-        attrs_block_content,
-        attrs_container_section_content_start,
+        anchor(section_name),
+        FENCE_OPEN,
     ]
 
     # Convention header section
     if section_title_value is not None:
-        lines.append(f"{MARKDOWN_HEADERS[HEADER2]} {section_title_value}")
+        lines.append(f"{heading_marker(SECTION_TITLE_LEVEL)} {section_title_value}")
         lines.append("")
 
-    # [BODY] : Append each entry in the list as a Markdown sub-section
+    # [BODY] :Append each entry in the list
     for item in entries:
         lines.extend(_render_entry(item))
 
-    # [FOOTER LINES]
+    # [FOOTER LINES] : container_plugin
     lines.extend(
         [
-            attrs_container_section_content_end,
+            FENCE_CLOSE,
             "",
         ]
     )

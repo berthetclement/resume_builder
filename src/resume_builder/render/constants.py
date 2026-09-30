@@ -5,8 +5,8 @@ CSS_KEY = "css"
 JS_KEY = "js"
 CONTENT_KEY = "content"
 
-# CSS class set on the <div> wrapping each entry (see render/entries.py)
-ENTRY_CLASS = "entry"
+# markdown-it token type read by render_resume
+TOKEN_FRONT_MATTER = "front_matter"
 
 # markdown-it token types read by the entry-wrapping transform
 TOKEN_CONTAINER_OPEN = f"container_{CONTAINER_NAME}_open"

@@ -21,6 +21,10 @@ def _field_lines(model: BaseModel) -> list[str]:
         # value of flat field
         value = getattr(model, field_name)
 
+        # An unset optional field has nothing to write
+        if value is None:
+            continue
+
         # extract the custom field metadata
         extra = field_info.json_schema_extra
         marker = heading_marker(extra.get(CUSTOM_FIELD)) if isinstance(extra, dict) else None

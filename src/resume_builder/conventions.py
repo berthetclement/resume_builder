@@ -24,6 +24,9 @@ def heading_marker(level: object) -> str | None:
 SECTION_TITLE_LEVEL = 2  # `##` — see the heading table in CLAUDE.md
 ENTRY_HEADING_LEVEL = 3  # `###` — opens an .entry box
 
+# CSS class set on the <div> wrapping each entry (see render/entries.py)
+ENTRY_CLASS = "entry"
+
 
 # MarkdownIt plugins values
 

@@ -13,9 +13,8 @@ within one entry.
 
 from markdown_it.token import Token
 
-from resume_builder.conventions import ENTRY_HEADING_LEVEL
+from resume_builder.conventions import ENTRY_CLASS, ENTRY_HEADING_LEVEL
 from resume_builder.render.constants import (
-    ENTRY_CLASS,
     TOKEN_CONTAINER_CLOSE,
     TOKEN_CONTAINER_OPEN,
     TOKEN_ENTRY_CLOSE,
@@ -61,14 +60,13 @@ def _find_container_close(tokens: list[Token], start: int) -> int | None:
 
 def _wrap_container_body(body: list[Token]) -> list[Token]:
     """
-    The current convention is to use one entry per h3 heading found in an `div` entry tag.
+    Open an entry at every h3 in the stream, closing the previous one.
     """
-    entry_level = ENTRY_HEADING_LEVEL
     wrapped: list[Token] = []
     in_entry = False
 
     for token in body:
-        if token.type == TOKEN_HEADING_OPEN and _heading_level(token) == entry_level:
+        if token.type == TOKEN_HEADING_OPEN and _heading_level(token) == ENTRY_HEADING_LEVEL:
             if in_entry:
                 wrapped.append(_entry_close())
             wrapped.append(_entry_open())

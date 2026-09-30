@@ -98,6 +98,14 @@ inside a `::: section`, closing it at the next `###` or at the end of the contai
 - The box is required: `break-inside: avoid` needs an element, and positional
   selectors must count *within* an entry, not across the whole section.
 
+**Nested containers were considered and rejected.** A second `entry` container gives
+byte-identical HTML — checked — but moves the cost onto whoever edits the file: one
+`::: entry` / `:::` pair per job, and the *outer* fence has to be the longer one
+(`:::: section`), because a closing `:::` would otherwise shut the section at the end
+of the first entry. The `###` is information the user types anyway; a fence is ceremony
+that exists only to serve the CSS. Forget one and the job silently loses its
+`break-inside: avoid` — visible only in the PDF, split across a page.
+
 ### Entry field order
 
 Inside an entry, **position is meaning**. The stylesheet addresses fields by index, so
@@ -144,6 +152,16 @@ Two different things, two different homes — do not mix them:
 The rule that decides: `Field(title=...)` is fixed at class-definition time and shared
 by every instance, so it can only ever hold a label. Anything that varies per resume is
 data and belongs in a field.
+
+### Frontmatter
+
+An optional YAML block at the top of the file. Only `css` and `js` are read; each takes
+one path or a list of paths. Every other key is ignored — the block stays open for the
+user's own metadata, and closing it would turn every future key into a breaking change.
+
+Two things are checked and raise: the block must be a mapping, and `css`/`js` must hold
+a string or a list. Nothing else is validated. We constrain the shape of what we read,
+not the presence of what we do not.
 
 ### CSS
 

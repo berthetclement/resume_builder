@@ -71,7 +71,8 @@ Paris, France
 ```
 
 The line order inside the entry is not free — see "Entry field order" below. A list
-field renders as `- item` lines; every other field renders as one bare line.
+field renders as `- item` lines; every other field renders as one bare line. An
+optional field left at `None` renders as nothing at all — no line, no blank line.
 
 - `{#id}` must be **on its own line, immediately before** the block it targets.
   Pandoc/pagedown's trailing form (`## Title {#id}`) does *not* work with

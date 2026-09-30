@@ -1,7 +1,9 @@
 from itertools import pairwise
+from pathlib import Path
 
 from resume_builder.models.constants import CONTACT_SECTION_TITLE, EXPERIENCES_SECTION_TITLE
-from resume_builder.models.resume_model import Resume
+from resume_builder.models.resume_model import Contact, Main, Resume
+from resume_builder.template.markdown_writer import write_model_to_markdown
 
 """Pin the Markdown contract that `write_model_to_markdown` produces.
 
@@ -150,3 +152,35 @@ def test_every_model_value_reaches_the_file(default_resume: Resume, default_mark
             for value in item.model_dump().values():
                 for leaf in value if isinstance(value, list) else [value]:
                     assert str(leaf) in body, f"{field_name}: {leaf!r} is missing"
+
+
+# an optional field left unset must write nothing, not the string "None"
+def test_unset_optional_field_writes_no_line(tmp_path: Path) -> None:
+    """`DEFAULT_RESUME` fills every optional field, so only a hand-built model reaches
+    this path — `write_model_to_markdown` is public and accepts any `Resume`.
+
+    Written out literally: the point is the spacing as much as the absence, since
+    skipping only the value would leave an orphan blank line behind.
+    """
+    resume = Resume(
+        main=Main(user_name="A", title_position="B", description="C"),
+        contact=Contact(email="a@b.c", phone="1"),  # personnal_website left unset
+        experiences=[],
+    )
+    md_path = tmp_path / "resume.md"
+    write_model_to_markdown(resume, md_path)
+
+    section = _section_lines(md_path.read_text(encoding="utf-8"), "contact")
+
+    assert section == [
+        "{#contact}",
+        "::: section",
+        f"## {CONTACT_SECTION_TITLE}",
+        "",
+        "a@b.c",
+        "",
+        "1",
+        "",
+        ":::",
+        "",
+    ]

@@ -4,7 +4,7 @@ import pytest
 
 from resume_builder.models.resume_model import Resume
 from resume_builder.template.default_resume import DEFAULT_RESUME
-from resume_builder.template.markdown_writer import write_model_to_markdown
+from resume_builder.template.markdown_writer import _write_model_to_markdown
 
 
 # Instance of Pydantic base model
@@ -17,5 +17,5 @@ def default_resume() -> Resume:
 @pytest.fixture
 def default_markdown_resume_content(tmp_path: Path, default_resume: Resume) -> str:
     name_file = "test_resume.md"
-    write_model_to_markdown(default_resume, tmp_path / name_file)
+    _write_model_to_markdown(default_resume, tmp_path / name_file)
     return (tmp_path / name_file).read_text(encoding="utf-8")

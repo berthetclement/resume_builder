@@ -39,8 +39,8 @@ belongs to `template/` or `render/` instead.
 | Level | Meaning | Where it comes from |
 |---|---|---|
 | `#` | document title (the person's name) | `MarkdownH1` hint on `Main.user_name` |
-| `##` | section title (`Contact Information`, `WORK EXPERIENCE`) | `Field(title=...)` on the `Resume` field |
-| `###` | entry title — **opens an `.entry` box** | `MarkdownH3` hint on the entry's first field (`Experience.position`, `Main.title_position`) |
+| `##` | section title (`Contact Information`, `Work Experience`) | `Field(title=...)` on the `Resume` field |
+| `###` | entry title — **opens an `.entry` box** | `MarkdownH3` hint on the entry's first field (`Entry.title`, `TitledEntry.title`, `Main.title_position`) |
 
 `main` is the only exception, and it needs no special-casing in code: it has no
 `Field(title=...)` (so no `##` is emitted) and it is the only section holding the `#`.
@@ -71,8 +71,9 @@ Paris, France
 ```
 
 The line order inside the entry is not free — see "Entry field order" below. A list
-field renders as `- item` lines; every other field renders as one bare line. An
-optional field left at `None` renders as nothing at all — no line, no blank line.
+field renders as `- item` lines; every other field renders as one bare line. No
+field is optional: `_write_model_to_markdown` carries no `None` branch, so an
+optional field left unset would write the literal string "None" into the file.
 
 - `{#id}` must be **on its own line, immediately before** the block it targets.
   Pandoc/pagedown's trailing form (`## Title {#id}`) does *not* work with
@@ -107,6 +108,35 @@ of the first entry. The `###` is information the user types anyway; a fence is c
 that exists only to serve the CSS. Forget one and the job silently loses its
 `break-inside: avoid` — visible only in the PDF, split across a page.
 
+### Entry models — three shapes, each with fixed arity
+
+One model class per shape of section content, and the class alone decides what the
+writer emits:
+
+| | `BriefEntry` | `TitledEntry` | `Entry` |
+|---|---|---|---|
+| sections | `contact`, `skills` | `languages` | `experiences`, `education`, `personal_projects` |
+| emits a `###` | no | yes | yes |
+| gets an `.entry` box | no | yes | yes |
+
+`BriefEntry` holds free content under its `##` and nothing else. With no `###`,
+`wrap_entries()` has nothing to wrap and the positional contract below does not apply
+to it — the same situation as a section the user writes by hand as a plain list.
+
+**Three fixed-arity classes, not one class with optional fields.** The stylesheet
+addresses lines by index, and `nth-of-type` counts what is *present*, not what the
+model declares. Omitting a **trailing** field is harmless: the unmatched rules style
+nothing. Omitting a **middle** one shifts everything after it by one — an entry with
+dates but no location gets its start date styled as a location, with no exception and
+no failing test, visible only on the rendered page. Optional fields permit that hole;
+classes whose fields are all required forbid it, because every entry in a section then
+has the same shape.
+
+Hence the rule for any new entry class: its `<p>`-producing fields must be a **prefix**
+of the order in "Entry field order" below — optional by truncation, never by holes.
+`description` counts as one of those `<p>` fields when it is a plain `str`; only as a
+list does it escape the count, rendering as `<ul>`.
+
 ### Entry field order
 
 Inside an entry, **position is meaning**. The stylesheet addresses fields by index, so
@@ -118,16 +148,22 @@ This is pagedown's own contract made explicit. It does the same thing — `ps[0]
 `ps[1]` location, `ps[2]` date — but only inside an inline script, discoverable by
 reading the source. Here it is written down and pinned by a test.
 
-`Experience` renders as:
+`Entry` renders as:
 
 | Order | Field | Element | Selector |
 |---|---|---|---|
-| 1 | `position` | `<h3>` | `.entry h3` |
-| 2 | `company` | `<p>` | `.entry p:nth-of-type(1)` |
-| 3 | `location` | `<p>` | `.entry p:nth-of-type(2)` |
-| 4 | `start_date` | `<p>` | `.entry p:nth-of-type(3)` |
-| 5 | `end_date` | `<p>` | `.entry p:nth-of-type(4)` |
-| 6 | `description` | `<ul><li>` | `.entry li` |
+| 1 | `title` | `<h3>` | `.entry > h3` |
+| 2 | `subtitle` | `<p>` | `.entry > p:nth-of-type(1)` |
+| 3 | `location` | `<p>` | `.entry > p:nth-of-type(2)` |
+| 4 | `start_date` | `<p>` | `.entry > p:nth-of-type(3)` |
+| 5 | `end_date` | `<p>` | `.entry > p:nth-of-type(4)` |
+| 6 | `description` | `<ul><li>` | `.entry > ul > li` |
+
+**The child combinator is load-bearing.** Written `.entry p:nth-of-type(1)`, the
+selector also matches the `<p>` inside a loose list item — bullets separated by a
+blank line render as `<li><p>…</p></li>`, and that `<p>` is the first of its kind
+among its siblings, so it would pick up the styling meant for `subtitle`. The
+writer emits tight lists, but the user hand-edits this file.
 
 `description` is `str | list[str]`: as a list it becomes a `<ul>` and the indices above
 hold; as a plain string it becomes a fifth `<p>` instead.
@@ -168,11 +204,11 @@ not the presence of what we do not.
 
 Every section div carries both its `id` and `class="section"`, so levels never collide
 across sections — `#contact h2` and `#experiences h2` are styled independently, and
-`#experiences .entry p:nth-of-type(1)` addresses one job's first line.
+`#experiences .entry > p:nth-of-type(1)` addresses one job's first line.
 
 ## Architecture
 
-`Resume` (pydantic) → `write_model_to_markdown()` generates a starter `.md` → the user
+`Resume` (pydantic) → `_write_model_to_markdown()` generates a starter `.md` → the user
 hand-edits it → `render_resume()` parses that file directly into HTML via Jinja2 →
 `paged.js` → Playwright → PDF.
 

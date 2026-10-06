@@ -10,6 +10,7 @@ from resume_builder.conventions import (
     anchor,
     heading_marker,
 )
+from resume_builder.models.resume_model import Resume
 from resume_builder.template.constants import YAML_FRONT_MATTER
 from resume_builder.template.default_resume import DEFAULT_RESUME
 
@@ -20,10 +21,6 @@ def _field_lines(model: BaseModel) -> list[str]:
     for field_name, field_info in type(model).model_fields.items():
         # value of flat field
         value = getattr(model, field_name)
-
-        # An unset optional field has nothing to write
-        if value is None:
-            continue
 
         # extract the custom field metadata
         extra = field_info.json_schema_extra
@@ -61,11 +58,11 @@ def _section_lines(section_id: str, title: str | None, body: list[str]) -> list[
     return lines
 
 
-def write_model_to_markdown(model: BaseModel, file_path: Path) -> None:
+def _write_model_to_markdown(model: Resume, file_path: Path) -> None:
     """
     Create a structured Markdown file from a Pydantic BaseModel instance, with each field written as a separate section.
     Args:
-        model (BaseModel): The Pydantic model instance to write.
+        model (Resume): The internal model instance to write (not a generic BaseModel).
         file_path (Path): The path to the output Markdown file.
     """
     # [HEADER] : Add YAML front matter for optional custom styling
@@ -98,5 +95,5 @@ def init_resume(
     if resume_path.exists() and not force:
         raise FileExistsError(f"{resume_path} already exists — pass force=True to overwrite")
 
-    write_model_to_markdown(DEFAULT_RESUME, resume_path)
+    _write_model_to_markdown(DEFAULT_RESUME, resume_path)
     return resume_path

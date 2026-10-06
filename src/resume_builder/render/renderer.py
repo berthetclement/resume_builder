@@ -59,7 +59,7 @@ def render_resume(md_path: Path, output_path: Path) -> None:
 
     Args:
         md_path: Path to the source `.md` file (as produced by
-            `write_model_to_markdown`, then optionally hand-edited).
+            `_write_model_to_markdown`, then optionally hand-edited).
         output_path: Path the final `.html` file is written to.
     """
     if not md_path.is_file():

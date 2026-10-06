@@ -4,6 +4,7 @@ from resume_builder.template.constants import (
     DESCRIPTION_MAIN_VALUE,
     EDUCATION,
     EXPERIENCES,
+    LANGUAGES,
     PERSONAL_PROJECTS,
     SKILLS_DESCRIPTION,
     TITLE_POSITION_VALUE,
@@ -17,5 +18,5 @@ DEFAULT_RESUME = Resume(
     experiences=[Entry.model_validate(row) for row in EXPERIENCES],
     education=[Entry.model_validate(row) for row in EDUCATION],
     personal_projects=[Entry.model_validate(row) for row in PERSONAL_PROJECTS],
-    languages=TitledEntry(title="French", description="Reading, Writing, Speaking"),
+    languages=[TitledEntry.model_validate(row) for row in LANGUAGES],
 )

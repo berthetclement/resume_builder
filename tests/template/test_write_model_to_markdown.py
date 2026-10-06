@@ -72,13 +72,30 @@ def test_main_has_no_section_title(default_markdown_resume_content: str) -> None
 
 
 # test json_extra_field drive well levels contructions by Pydantic
+# One assertion per class that declares a hint, not per section
 def test_heading_hint_drives_the_level(default_resume: Resume, default_markdown_resume_content: str) -> None:
     # then
     lines = default_markdown_resume_content.splitlines()
 
+    # Main class
     assert f"# {default_resume.main.user_name}" in lines  # MarkdownH1
     assert f"### {default_resume.main.title_position}" in lines  # MarkdownH3
+
+    # Entry class
     assert f"### {default_resume.experiences[0].title}" in lines  # MarkdownH3
+
+    # TitledEntry class
+    assert f"### {default_resume.languages[0].title}" in lines  # MarkdownH3
+
+
+# BriefEntry declares no heading hint — its sections must stay entry-free
+def test_brief_entry_sections_emit_no_entry_heading(default_markdown_resume_content: str) -> None:
+    """Add a `MarkdownH3` field to `BriefEntry` and contact/skills become entries,
+    styled by position like a job. See CLAUDE.md "Entry models".
+    """
+    for section_name in ("contact", "skills"):
+        section = _section_lines(default_markdown_resume_content, section_name)
+        assert not [line for line in section if line.startswith("### ")], section
 
 
 # test blank lines necessary for Markdown plugin to not disturbing CommonMark rules

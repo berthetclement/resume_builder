@@ -62,4 +62,4 @@ class Resume(BaseModel):
     experiences: list[Entry] = Field(title=EXPERIENCES_SECTION_TITLE)
     education: list[Entry] = Field(title=EDUCATION_SECTION_TITLE)
     personal_projects: list[Entry] = Field(title=PERSONAL_PROJECTS_SECTION_TITLE)
-    languages: TitledEntry = Field(title=LANGUAGES_SECTION_TITLE)
+    languages: list[TitledEntry] = Field(title=LANGUAGES_SECTION_TITLE)

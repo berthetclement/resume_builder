@@ -11,8 +11,10 @@ def test_resume_model(default_resume: Resume) -> None:
     assert resume.main.user_name == "John Doe"
     assert resume.main.title_position == "Project Manager"
     assert resume.main.description == "Experienced software engineer with a passion for developing innovative programs."
-    assert resume.contact.email == "john.doe@example.com"
-    assert resume.contact.phone == "123-456-7890"
+    assert (
+        resume.contact.description
+        == "&#9993; john.doe@example.com\n\n&#9742; 123-456-7890\n\n&#xf09b; https://johndoe.com"
+    )
 
     assert len(resume.experiences) == 3
     i = 0

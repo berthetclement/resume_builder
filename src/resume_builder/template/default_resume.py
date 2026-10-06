@@ -1,16 +1,21 @@
-from resume_builder.models.resume_model import Contact, Experience, Main, Resume
+from resume_builder.models.resume_model import BriefEntry, Entry, Main, Resume, TitledEntry
 from resume_builder.template.constants import (
+    CONTACT_DESCRIPTION,
     DESCRIPTION_MAIN_VALUE,
-    EMAIL,
+    EDUCATION,
     EXPERIENCES,
-    PERSONAL_WEBSITE,
-    PHONE,
+    PERSONAL_PROJECTS,
+    SKILLS_DESCRIPTION,
     TITLE_POSITION_VALUE,
     USER_NAME_VALUE,
 )
 
 DEFAULT_RESUME = Resume(
     main=Main(user_name=USER_NAME_VALUE, title_position=TITLE_POSITION_VALUE, description=DESCRIPTION_MAIN_VALUE),
-    contact=Contact(email=EMAIL, phone=PHONE, personnal_website=PERSONAL_WEBSITE),
-    experiences=[Experience.model_validate(row) for row in EXPERIENCES],
+    contact=BriefEntry(description=CONTACT_DESCRIPTION),
+    skills=BriefEntry(description=SKILLS_DESCRIPTION),
+    experiences=[Entry.model_validate(row) for row in EXPERIENCES],
+    education=[Entry.model_validate(row) for row in EDUCATION],
+    personal_projects=[Entry.model_validate(row) for row in PERSONAL_PROJECTS],
+    languages=TitledEntry(title="French", description="Reading, Writing, Speaking"),
 )

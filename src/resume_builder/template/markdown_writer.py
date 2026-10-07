@@ -6,56 +6,45 @@ from resume_builder.conventions import (
     CUSTOM_FIELD,
     FENCE_CLOSE,
     FENCE_OPEN,
+    SECTION_BREAK,
     SECTION_TITLE_LEVEL,
     anchor,
     heading_marker,
+    join_blocks,
 )
 from resume_builder.models.resume_model import Resume
 from resume_builder.template.constants import YAML_FRONT_MATTER
 from resume_builder.template.default_resume import DEFAULT_RESUME
 
 
-def _field_lines(model: BaseModel) -> list[str]:
-    """Markdown lines for every field of a model instance - the body of a section."""
-    lines = []
+def _field_blocks(model: BaseModel) -> list[str]:
+    """One Markdown block per field - a list field becomes a single block of `- item` lines."""
+    blocks: list[str] = []
+
     for field_name, field_info in type(model).model_fields.items():
-        # value of flat field
         value = getattr(model, field_name)
 
-        # extract the custom field metadata
         extra = field_info.json_schema_extra
         marker = heading_marker(extra.get(CUSTOM_FIELD)) if isinstance(extra, dict) else None
 
         if marker is not None:
-            lines.append(f"{marker} {value}")
+            blocks.append(f"{marker} {value}")
         elif isinstance(value, list):
-            lines.extend(f"- {line}" for line in value)
+            blocks.append("\n".join(f"- {item}" for item in value))
         else:
-            lines.append(str(value))
+            blocks.append(str(value))
 
-        # every field on its own paragraph — and a readable file to hand-edit
-        # not necessary for CommonMark except to separate two strings
-        lines.append("")
-
-    return lines
+    return blocks
 
 
-def _section_lines(section_id: str, title: str | None, body: list[str]) -> list[str]:
-    """
-    Wrap a body in the section container: anchor, fence, optional title.
-    Args:
-        section_id (str): The ID of the section, used for the 'attrs_block_plugin'
-        title (str | None): The title of the section.
-        body (list[str]): The body content of the section.
-    Returns:
-        list[str]: The Markdown lines for the section.
-    """
-    lines = [anchor(section_id), FENCE_OPEN]
+def _section(section_id: str, title: str | None, body: list[str]) -> str:
+    """Wrap body blocks in the section container."""
+    blocks = [anchor(section_id), FENCE_OPEN]
     if title is not None:
-        lines += [f"{heading_marker(SECTION_TITLE_LEVEL)} {title}", ""]
-    lines += body
-    lines += [FENCE_CLOSE, ""]
-    return lines
+        blocks.append(f"{heading_marker(SECTION_TITLE_LEVEL)} {title}")
+    blocks += body
+    blocks.append(FENCE_CLOSE)
+    return join_blocks(blocks)
 
 
 def _write_model_to_markdown(model: Resume, file_path: Path) -> None:
@@ -65,20 +54,22 @@ def _write_model_to_markdown(model: Resume, file_path: Path) -> None:
         model (Resume): The internal model instance to write (not a generic BaseModel).
         file_path (Path): The path to the output Markdown file.
     """
-    # [HEADER] : Add YAML front matter for optional custom styling
-    lines = [YAML_FRONT_MATTER]
-    lines.append("")
+    sections: list[str] = []
 
-    # [BODY] : Write each field of the model as a Markdown section
     for field_name, field_info in type(model).model_fields.items():
         value = getattr(model, field_name)
-        models = [value] if isinstance(value, BaseModel) else value
-        body: list[str] = []
-        for m in models:
-            body.extend(_field_lines(m))
-        lines.extend(_section_lines(field_name, field_info.title, body))
 
-    file_path.write_text("\n".join(lines), encoding="utf-8")
+        # a section holds either one model (contact) or a list of them (experiences)
+        section_models = [value] if isinstance(value, BaseModel) else value
+
+        body: list[str] = []
+        for section_model in section_models:
+            body.extend(_field_blocks(section_model))
+
+        sections.append(_section(field_name, field_info.title, body))
+
+    document = join_blocks([YAML_FRONT_MATTER] + sections, SECTION_BREAK)
+    file_path.write_text(document + "\n", encoding="utf-8")
 
 
 def init_resume(

@@ -10,6 +10,7 @@ CUSTOM_FIELD = "markdown"
 HEADING_MARKERS = {1: "#", 2: "##", 3: "###"}
 
 
+# Heading levels for Markdown sections and entries
 def heading_marker(level: object) -> str | None:
     """Markdown markup for a heading level read from `json_schema_extra`.
 
@@ -26,6 +27,15 @@ ENTRY_HEADING_LEVEL = 3  # `###` — opens an .entry box
 
 # CSS class set on the <div> wrapping each entry (see render/entries.py)
 ENTRY_CLASS = "entry"
+
+# Conventions for Markdown blocks
+PARAGRAPH_BREAK = "\n\n"  # between blocks inside a section
+SECTION_BREAK = "\n\n\n"  # between sections — two blank lines
+
+
+def join_blocks(blocks: list[str], separator: str = PARAGRAPH_BREAK) -> str:
+    """Join Markdown blocks, separated by one blank line unless told otherwise."""
+    return separator.join(blocks)
 
 
 # MarkdownIt plugins values

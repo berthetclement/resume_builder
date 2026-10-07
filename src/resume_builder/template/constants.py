@@ -1,5 +1,6 @@
+from resume_builder.conventions import join_blocks
+
 # Constants for the resume builder template
-BLANK_LINE = "\n\n"
 
 # Main part
 LAST_POSITION = "Project Manager"
@@ -14,6 +15,7 @@ PHONE = "123-456-7890"
 PERSONAL_WEBSITE = "https://johndoe.com"
 HTML_CODE_EMAIL = "&#9993;"
 HTML_CODE_PHONE = "&#9742;"
+
 # GitHub has no Unicode character — it is a brand mark, and the Font Awesome
 # codepoint we used before renders as an empty box without that font loaded.
 # Inline SVG needs no font at all: `html=True` on the parser passes it through,
@@ -30,14 +32,19 @@ GITHUB_ICON = (
     "-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012"
     ' 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>'
 )
-CONTACT_DESCRIPTION = (
-    f"{HTML_CODE_EMAIL} {EMAIL}{BLANK_LINE}{HTML_CODE_PHONE} {PHONE}{BLANK_LINE}{GITHUB_ICON} {PERSONAL_WEBSITE}"
-)
+
+EMAIL_LINE = f"{HTML_CODE_EMAIL} {EMAIL}"
+PHONE_LINE = f"{HTML_CODE_PHONE} {PHONE}"
+WEBSITE_LINE = f"{GITHUB_ICON} {PERSONAL_WEBSITE}"
+
+CONTACT_DESCRIPTION = join_blocks([EMAIL_LINE, PHONE_LINE, WEBSITE_LINE])
 
 # Skills part
 STAR_SYMBOL_FULL = "&#9733;"
 STAR_SYMBOL_EMPTY = "&#9734;"
-SKILLS_DESCRIPTION = f"R {STAR_SYMBOL_FULL * 5}\n\nPython {STAR_SYMBOL_FULL * 4}{STAR_SYMBOL_EMPTY * 1}"
+R_RATING_SKILL_SYMBOL = f"R {STAR_SYMBOL_FULL * 5}"
+PYTHON_RATING_SKILL_SYMBOL = f"Python {STAR_SYMBOL_FULL * 4}{STAR_SYMBOL_EMPTY * 1}"
+SKILLS_DESCRIPTION = join_blocks([R_RATING_SKILL_SYMBOL, PYTHON_RATING_SKILL_SYMBOL])
 
 # Work experience part
 EXPERIENCES = [
@@ -123,10 +130,7 @@ PERSONAL_PROJECTS = [
         "location": "Boston, MA",
         "start_date": "2018",
         "end_date": "2019",
-        "description": [
-            "Designed and developed a personal website using HTML, CSS, and JavaScript.",
-            "Showcased my projects, skills, and experience on the website.",
-        ],
+        "description": "Designed and developed a personal website using HTML, CSS, and JavaScript.",
     },
 ]
 
@@ -149,5 +153,4 @@ YAML_FRONT_MATTER = """---
 # Optional: add custom styling by uncommenting and editing the lines below
 # css:
 #   - my-theme.css
----
-"""
+---"""

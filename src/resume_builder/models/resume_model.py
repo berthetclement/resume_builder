@@ -37,12 +37,12 @@ class Main(BaseModel):
 
 
 class BriefEntry(BaseModel):
-    description: str | list[str] = Field(default_factory=list)
+    description: str | list[str]
 
 
 class TitledEntry(BaseModel):
     title: MarkdownH3
-    description: str | list[str] = Field(default_factory=list)
+    description: str | list[str]
 
 
 class Entry(BaseModel):
@@ -51,7 +51,7 @@ class Entry(BaseModel):
     location: str
     start_date: str
     end_date: str
-    description: str | list[str] = Field(default_factory=list)
+    description: str | list[str]
 
 
 # Use the `Field` function to provide titles for the sections in the resume model

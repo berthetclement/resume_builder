@@ -51,8 +51,10 @@ One `::: section` per `Resume` field, `id` = the field name:
 
 ```markdown
 {#experiences}
+
 ::: section
-## WORK EXPERIENCE
+
+## Work Experience
 
 ### Consultant Data Scientist
 
@@ -70,20 +72,29 @@ Paris, France
 :::
 ```
 
-The line order inside the entry is not free — see "Entry field order" below. A list
-field renders as `- item` lines; every other field renders as one bare line. No
+The line order inside the entry is not free — see "Entry field order" below. Each
+field is one **block**: a list field renders as `- item` lines joined by a single
+newline *inside* that one block, every other field renders as one bare line. No
 field is optional: `_write_model_to_markdown` carries no `None` branch, so an
 optional field left unset would write the literal string "None" into the file.
 
-- `{#id}` must be **on its own line, immediately before** the block it targets.
+- `{#id}` must be **on its own line, before** the block it targets.
   Pandoc/pagedown's trailing form (`## Title {#id}`) does *not* work with
-  `attrs_block_plugin`.
+  `attrs_block_plugin`. It binds to the *next* block whatever that block is —
+  container, heading, paragraph or list — and blank lines in between change
+  nothing (measured). A stray anchor therefore decorates whatever follows it,
+  silently.
 - The container wraps the *whole* section, heading included — CSS Grid treats every
   direct child of the grid container as its own item, so the heading and its content
   must move as one unit.
-- **One blank line between every field.** This is load-bearing, not cosmetic:
-  CommonMark merges adjacent lines into a single `<p>`, and no stylesheet can pull
-  them apart afterwards.
+- **One blank line between every block, two between sections.** The first is
+  load-bearing, not cosmetic: CommonMark merges adjacent lines into a single `<p>`,
+  and no stylesheet can pull them apart afterwards. The second is ergonomics — this
+  file exists to be hand-edited, and the wider gap shows where a section ends.
+  Neither is ever written by a caller: `join_blocks()` in `conventions.py` owns the
+  separator, with `PARAGRAPH_BREAK` inside a section and `SECTION_BREAK` between
+  them. A value that carried its own separator would be the bug that function
+  exists to prevent.
 
 ### Entry boxes
 

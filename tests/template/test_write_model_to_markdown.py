@@ -49,10 +49,11 @@ def test_each_field_gets_its_own_section(default_markdown_resume_content: str) -
 
     for field_name in Resume.model_fields:
         section = _section_lines(default_markdown_resume_content, field_name)
+        content = [line for line in section if line]
 
-        assert section[0] == f"{{#{field_name}}}"
-        assert section[1] == "::: section"
-        assert section.count(":::") == 1
+        assert content[0] == f"{{#{field_name}}}"
+        assert content[1] == "::: section"
+        assert content.count(":::") == 1
 
     assert lines.count("::: section") == len(Resume.model_fields)
 

@@ -1,0 +1,58 @@
+/* ==========================================================================
+   theme.css — yours.
+
+   Nothing here applies until you uncomment the `css:` block at the top of
+   resume.md. That block is what tells the renderer to load this file, and
+   it is loaded *after* resume.css, so whatever you set here wins.
+
+   resume.css, next to this file, belongs to the library. Edit this one
+   instead: it is written once, when the project is created, and never
+   touched again.
+   ========================================================================== */
+
+:root {
+
+  /* ---- colours ------------------------------------------------------- */
+  --text-color: #444;
+  --heading-color: #111;
+  --muted-color: #777;                  /* dates and locations */
+
+  --sidebar-bg: hsl(210, 100%, 97%);    /* the printed band */
+  --rule-color: hsl(210, 40%, 76%);     /* the timeline's vertical line */
+  --dot-color: hsl(210, 100%, 32%);     /* the dot on each entry */
+
+  /* ---- type ---------------------------------------------------------- */
+  /* A font you name must exist on the machine that renders the PDF, so keep
+     a fallback. Georgia and the generic `serif` are safe everywhere. */
+  --text-family: Georgia, serif;
+  --heading-family: Georgia, serif;
+
+  --root-font-size: 11pt;               /* scales the whole document */
+
+  /* ---- spacing — uncomment only if you need to --------------------------
+     These are layout, not taste. Leaving them commented lets a later
+     version of the library improve them for you. */
+
+  /* --date-width: 12mm; */             /* widen it for longer dates */
+  /* --date-gap: 5mm; */
+  /* --dot-size: 9px; */
+
+  /* These two describe the same vertical line — the sidebar's width, and how
+     far the printed band reaches. Change BOTH or they will disagree. */
+  /* --sidebar-width: 65mm; */
+  /* --sidebar-band: 65mm; */
+
+}
+
+/* ---- page size and margins -------------------------------------------
+   Not settable from here. paged.js parses `@page` with its own parser and
+   ignores custom properties, so a variable is silently dropped and its
+   default takes over. Page geometry is written literally in resume.css. */
+
+/* ---- anything else ----------------------------------------------------
+   Ordinary CSS works too. Section ids come from your Markdown
+   (`{#experiences}` → `#experiences`), and every section also carries
+   `class="section"`. Put defaults on the class and exceptions after them:
+   pagination rewrites ids in a way that costs them their usual priority. */
+
+/* #languages h2 { color: #333; } */

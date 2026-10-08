@@ -1,4 +1,4 @@
-from resume_builder.conventions import join_blocks
+from resume_builder.conventions import ASSETS_FOLDER_NAME, PATH_FILE_YAML_CSS, join_blocks
 
 # Constants for the resume builder template
 
@@ -147,10 +147,10 @@ LANGUAGES = [
     },
 ]
 
-
-# yaml front matter example
-YAML_FRONT_MATTER = """---
-# Optional: add custom styling by uncommenting and editing the lines below
+# yaml front matter template
+YAML_FRONT_MATTER = f"""---
+# Optional: your own stylesheets, loaded after resume.css, in the order below.
+# Put them in a folder named "{ASSETS_FOLDER_NAME}" next to your Markdown file.
 # css:
-#   - my-theme.css
+#   - {PATH_FILE_YAML_CSS}
 ---"""

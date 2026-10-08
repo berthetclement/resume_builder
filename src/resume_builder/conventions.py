@@ -50,3 +50,18 @@ FENCE_CLOSE = FENCE_MARKER
 # attrs_block_plugin
 def anchor(section_id: str) -> str:
     return f"{{#{section_id}}}"
+
+
+# FOLDER NAMES FOR ASSETS
+ASSETS_FOLDER_NAME = "resume_builder_files"
+ASSET_CSS_USER_FILE_NAME = "theme.css"
+ASSET_CSS_BUILTIN_FILE_NAME = "resume.css"
+ASSET_JS_BUILTIN_FILE_NAME = "paged.polyfill.min.js"
+INIT_FOLDER_NAME = "resume_builder_template"
+
+# not Path objects so they do not depend on the OS path separator
+PATH_FILE_YAML_CSS = ASSETS_FOLDER_NAME + "/" + ASSET_CSS_USER_FILE_NAME
+
+
+# Default name of the Markdown file init_resume() creates
+INIT_RESUME_FILE_NAME = "resume.md"

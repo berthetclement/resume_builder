@@ -1,11 +1,18 @@
+import shutil
 from pathlib import Path
 
 from pydantic import BaseModel
 
 from resume_builder.conventions import (
+    ASSET_CSS_BUILTIN_FILE_NAME,
+    ASSET_CSS_USER_FILE_NAME,
+    ASSET_JS_BUILTIN_FILE_NAME,
+    ASSETS_FOLDER_NAME,
     CUSTOM_FIELD,
     FENCE_CLOSE,
     FENCE_OPEN,
+    INIT_FOLDER_NAME,
+    INIT_RESUME_FILE_NAME,
     SECTION_BREAK,
     SECTION_TITLE_LEVEL,
     anchor,
@@ -15,6 +22,8 @@ from resume_builder.conventions import (
 from resume_builder.models.resume_model import Resume
 from resume_builder.template.constants import YAML_FRONT_MATTER
 from resume_builder.template.default_resume import DEFAULT_RESUME
+
+RESOURCE_ASSETS_PATH = Path(__file__).parent.parent / "assets"
 
 
 def _field_blocks(model: BaseModel) -> list[str]:
@@ -72,19 +81,35 @@ def _write_model_to_markdown(model: Resume, file_path: Path) -> None:
     file_path.write_text(document + "\n", encoding="utf-8")
 
 
+# TODO  remove force: target_dir already covers starting fresh, and force is the only path
+# by which the library can destroy a user's theme.css
 def init_resume(
     target_dir: Path = Path("."),
-    filename: str = "resume.md",
+    filename: str = INIT_RESUME_FILE_NAME,
     force: bool = False,
 ) -> Path:
     """
-    Initializes a new resume Markdown file in the specified directory.
+    Initializes a new resume Markdown file.
+     Rendering needs assets: they are copied into the `resume_builder_files` folder next to it.
+    Args:
+        target_dir (Path): The directory where the resume file will be created.
+        filename (str): The name of the resume file to create.
+        force (bool): Whether to overwrite an existing file.
     """
-    target_dir.mkdir(parents=True, exist_ok=True)
-    resume_path = target_dir / filename
+    dir_init = target_dir / INIT_FOLDER_NAME
+    dir_init.mkdir(parents=True, exist_ok=True)
+    resume_path = dir_init / filename
 
     if resume_path.exists() and not force:
         raise FileExistsError(f"{resume_path} already exists — pass force=True to overwrite")
 
     _write_model_to_markdown(DEFAULT_RESUME, resume_path)
+
+    # copy on disk all files needed for rendering
+    dir_assets = dir_init / ASSETS_FOLDER_NAME
+    dir_assets.mkdir(parents=True, exist_ok=True)
+
+    files = [ASSET_CSS_USER_FILE_NAME, ASSET_CSS_BUILTIN_FILE_NAME, ASSET_JS_BUILTIN_FILE_NAME]
+    for asset_name in files:
+        shutil.copy(RESOURCE_ASSETS_PATH / asset_name, dir_assets)
     return resume_path

@@ -1,0 +1,376 @@
+/* ==========================================================================
+   Experiment pass 2 — see claude_private/layout-plan.md
+
+   Changes from pass 1, each answering one visual defect:
+   - entries are a GRID, not absolutely positioned paragraphs. Absolute
+     positioning of content made paged.js render the dates wrong (overlap /
+     blur). Decoration (rule, dot) stays absolute: a pseudo-element never has
+     to reserve space.
+   - section titles shift right to align with the entry text, so the rule and
+     the dates sit at the section's left edge instead of looking indented.
+   - the main column gets padding-right so a right-floated location cannot
+     reach the blue band.
+   - section icons come from `data-icon` on the {#id} line, which
+     attrs_block_plugin already supports: {#experiences data-icon=suitcase}
+
+   TWO KNOBS if the band and the sidebar still disagree:
+     --sidebar-width   the floated sections' width
+     --sidebar-band    how far the @page gradient reaches from the right edge
+   They must describe the same vertical line. Tune --sidebar-band first.
+   ========================================================================== */
+
+:root {
+  /* page geometry — A4 */
+  --page-width: 210mm;
+  --margin-top: 14mm;
+  --margin-bottom: 14mm;
+  --margin-left: 12mm;
+  --margin-right: 0mm;   /* the sidebar IS the right margin */
+  --content-width: calc(var(--page-width) - var(--margin-left) - var(--margin-right));
+
+  /* two columns */
+  --sidebar-width: 65mm;   /* 31% of A4 — two-column CVs sit around 28-35% */
+  --sidebar-band: var(--sidebar-width);
+  --sidebar-padding: 5mm;
+  --sidebar-padding-right: 6mm;
+  --main-width: calc(var(--content-width) - var(--sidebar-width));
+  --main-gap: 8mm;
+
+  /* the timeline */
+  --date-width: 12mm;
+  --date-gap: 5mm;
+  --rule-x: calc(var(--date-width) + var(--date-gap) / 2);
+  --text-x: calc(var(--date-width) + var(--date-gap));
+  --rule-color: hsl(210, 40%, 76%);
+  --dot-color: hsl(210, 100%, 32%);
+  --dot-size: 9px;
+
+  /* type and colour */
+  --text-family: "Lora", Georgia, serif;
+  --heading-family: "Lora", Georgia, serif;
+  --text-color: #444;
+  --heading-color: #111;
+  --muted-color: #777;
+  --sidebar-bg: hsl(210, 100%, 97%);
+  --root-font-size: 11pt;
+}
+
+/* LITERAL VALUES ONLY. paged.js parses @page with its own parser and does not
+   resolve custom properties, so `margin: var(--margin-left) …` is silently
+   dropped and it falls back to its 1in default — which is what made the sidebar
+   and the stripe disagree by exactly 25.4mm. Same family as `size`, which does
+   not accept var() either.
+   Keep these four in sync with --margin-* in :root by hand. */
+@page {
+  size: A4 portrait;
+  margin: 14mm 0mm 14mm 12mm;
+}
+
+/* The stripe is painted on the page SHEET, one per page, so it repeats without
+   duplicating any content. On a real element rather than on `@page`: the at-rule
+   background is laid out on a box paged.js rescales in the screen preview, so it
+   could never stay aligned with content measured in mm.
+   Needs print_background=True when Playwright exports the PDF. */
+.pagedjs_page {
+  background: linear-gradient(
+    to left,
+    var(--sidebar-bg) var(--sidebar-band),
+    white var(--sidebar-band)
+  );
+}
+
+* { box-sizing: border-box; }
+
+html { font-size: var(--root-font-size); }
+
+body {
+  width: var(--content-width);
+  margin: 0;
+  font-family: var(--text-family);
+  font-weight: 400;
+  line-height: 1.35;
+  color: var(--text-color);
+  hyphens: auto;
+}
+
+h1, h2, h3 {
+  margin: 0;
+  font-family: var(--heading-family);
+  color: var(--heading-color);
+}
+
+a { color: inherit; text-decoration: none; }
+img { max-width: 100%; }
+
+/* --------------------------------------------------------------------------
+   The two columns. Sidebar membership is a list of ids — the price of keeping
+   `Resume` flat and layout-agnostic (layout-plan.md, Decision 1).
+   `clear: right` is what makes consecutive sidebar sections stack.
+   -------------------------------------------------------------------------- */
+
+
+/* Defaults on the CLASS. A new section in `Resume` needs no CSS at all —
+   ids are reserved for the sidebar, the only genuine exception.
+   padding-right keeps a right-floated location out of the blue band. */
+.section {
+  width: var(--main-width);
+  padding-right: var(--main-gap);
+}
+
+/* ORDER MATTERS, and not for style. paged.js rewrites `#id` selectors into
+   `[data-id="id"]` while paginating, to avoid duplicate ids across cloned
+   pages. That drops them from id specificity (1,0,0) to attribute specificity
+   (0,1,0) — a tie with `.section`, broken by source order. So the exceptions
+   must come AFTER the defaults, or the sidebar silently inherits the main
+   column's width. Measured: #contact was 133mm instead of 65mm. */
+#contact,
+#skills {
+  float: right;
+  clear: right;
+  /* flush with the content area's right edge, which is now the paper's edge —
+     same box, same edge as the stripe. Nothing left to drift. */
+  width: var(--sidebar-band);
+  padding-left: var(--sidebar-padding);
+  padding-right: var(--sidebar-padding-right);
+  font-size: 0.9rem;
+}
+
+/* --------------------------------------------------------------------------
+   Section titles. Shifted right to line up with the entry text column, which
+   leaves the rule and the dates at the section's own left edge. pagedown does
+   exactly this (`#main h2 { left: calc(date-width + margin) }`).
+   -------------------------------------------------------------------------- */
+
+/* every main-column title lines up with the entry text; the sidebar opts out */
+.section h2 {
+  margin-left: var(--text-x);
+}
+
+#contact h2,
+#skills h2 {
+  margin-left: 0;
+}
+
+.section h2 {
+  position: relative;
+  margin-top: 7mm;
+  margin-bottom: 2mm;
+  font-size: 1.1rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #555;
+  break-after: avoid;
+}
+
+/* Icons from `data-icon` on the {#id} line. Emoji for now — swapping in Font
+   Awesome later means changing these rules, nothing else. */
+/* centred on the rule: the h2 starts at --text-x, the rule sits at --rule-x */
+.section[data-icon] h2::before {
+  position: absolute;
+  left: calc(var(--rule-x) - var(--text-x) - 0.5em);
+  font-size: 0.9rem;
+  content: "\25CF";
+  color: var(--dot-color);
+}
+
+.section[data-icon="suitcase"] h2::before { content: "\1F4BC"; }
+.section[data-icon="graduation-cap"] h2::before { content: "\1F393"; }
+.section[data-icon="folder-open"] h2::before { content: "\1F4C2"; }
+.section[data-icon="user"] h2::before { content: "\1F464"; }
+
+#contact h2,
+#skills h2 {
+  margin-top: 8mm;
+  font-size: 0.95rem;
+}
+
+/* --------------------------------------------------------------------------
+   #main — the header block. Its ### produces an .entry too (intentional, see
+   CLAUDE.md "Entry boxes"), so every timeline rule below must be undone here.
+   -------------------------------------------------------------------------- */
+
+#main h1 {
+  font-size: 2.1rem;
+  font-weight: 400;
+  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+#main .entry {
+  display: block;
+  padding: 0;
+  margin: 0;
+}
+
+#main .entry::before,
+#main .entry::after { content: none; }
+
+#main .entry h3 {
+  margin-top: 1mm;
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--muted-color);
+}
+
+#main .entry > p {
+  margin: 2.5mm 0 0 0;
+  font-size: 0.9rem;
+}
+
+/* --------------------------------------------------------------------------
+   Entries — the timeline.
+   A two-column grid per entry: dates on the left, everything else on the
+   right. Grid items are in flow, so they reserve their space; that is the
+   whole point of moving off `position: absolute` for the dates.
+   `break-inside: avoid` means a single entry never splits, so the grid never
+   has to survive a page break.
+   -------------------------------------------------------------------------- */
+
+.entry {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--date-width) 1fr;
+  column-gap: var(--date-gap);
+  row-gap: 0;
+  padding-bottom: 5mm;
+  break-inside: avoid;
+}
+
+/* the vertical rule, between the two columns */
+.entry::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--rule-x);
+  border-left: 1px solid var(--rule-color);
+}
+
+/* the dot, centred on the rule */
+.entry::before {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: calc(var(--rule-x) - var(--dot-size) / 2);
+  z-index: 1;
+  width: var(--dot-size);
+  height: var(--dot-size);
+  border-radius: 50%;
+  background: var(--dot-color);
+  box-shadow: 0 0 0 2px #fff;
+}
+
+/* Explicit placement. Document order is h3, company, location, start, end, ul
+   — the order CLAUDE.md "Entry field order" pins. Note the child combinator:
+   without `>` these also match the <p> inside a loose list item. */
+.entry > h3 {
+  grid-column: 2;
+  grid-row: 1;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.entry > p:nth-of-type(1) {           /* company */
+  grid-column: 2;
+  grid-row: 2;
+  justify-self: start;
+  margin: 0.5mm 0 0 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.entry > p:nth-of-type(2) {           /* location */
+  grid-column: 2;
+  grid-row: 2;
+  justify-self: end;
+  max-width: 45%;
+  text-align: right;
+  margin: 0.5mm 0 0 0;
+  font-size: 0.85rem;
+  color: var(--muted-color);
+}
+
+/* The two dates are deliberately placed END ON TOP, against their order in the
+   Markdown. Entries run most-recent-first, so reading the gutter straight down
+   then gives a monotonically decreasing timeline (2024/2021, 2021/2019, …)
+   instead of a zigzag. The model keeps saying start -> end, which is what a date
+   range means; the stylesheet decides where each one sits. Grid places by
+   explicit grid-row, so DOM order is irrelevant here. */
+.entry > p:nth-of-type(3) {           /* start_date */
+  grid-column: 1;
+  grid-row: 2;
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--muted-color);
+}
+
+.entry > p:nth-of-type(4) {           /* end_date */
+  grid-column: 1;
+  grid-row: 1;
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--muted-color);
+}
+
+/* a 5th paragraph is a plain-string description (CLAUDE.md: str | list[str]) */
+.entry > p:nth-of-type(5) {
+  grid-column: 2;
+  grid-row: 3;
+  margin: 2mm 0 0 0;
+  font-size: 0.88rem;
+}
+
+.entry > ul {
+  grid-column: 2;
+  grid-row: 3;
+  margin: 2mm 0 0 0;
+  padding-left: 4mm;
+}
+
+.entry > ul li {
+  margin-bottom: 1mm;
+  font-size: 0.88rem;
+}
+
+/* --------------------------------------------------------------------------
+   Sidebar lists — no bullets, roomier lines
+   -------------------------------------------------------------------------- */
+
+#contact ul,
+#skills ul {
+  margin: 2mm 0 0 0;
+  padding-left: 0;
+  list-style: none;
+}
+
+#contact li,
+#skills li {
+  margin-bottom: 2mm;
+  line-height: 1.4;
+  /* an email or a URL is one unbreakable token: without this it overflows the
+     column and gets clipped at the paper edge instead of wrapping */
+  overflow-wrap: break-word;
+}
+
+/* --------------------------------------------------------------------------
+   paged.js screen preview — pages as sheets on a grey desk
+   -------------------------------------------------------------------------- */
+
+@media screen {
+  body {
+    background-color: #dcdcdc;
+    width: auto;
+  }
+  .pagedjs_pages {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .pagedjs_page {
+    margin: 12px 0;
+    box-shadow: 0 0 8px #313131;
+  }
+}

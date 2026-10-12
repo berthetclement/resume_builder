@@ -81,8 +81,6 @@ def _write_model_to_markdown(model: Resume, file_path: Path) -> None:
     file_path.write_text(document + "\n", encoding="utf-8")
 
 
-# TODO  remove force: target_dir already covers starting fresh, and force is the only path
-# by which the library can destroy a user's theme.css
 def init_resume(
     target_dir: Path = Path("."),
     filename: str = INIT_RESUME_FILE_NAME,

@@ -359,7 +359,12 @@ img { max-width: 100%; }
    paged.js screen preview — pages as sheets on a grey desk
    -------------------------------------------------------------------------- */
 
-@media screen {
+/* `pagedjs-ignore` is load-bearing. paged.js 0.4.3 unwraps `@media print` and
+   deletes every other @media block unless its query names `all` or
+   `pagedjs-ignore` — a bare `@media screen` vanishes silently, and the pages
+   render as one white strip. The browser reads the extra name as an unknown
+   media type, so the block still applies on screen only, never in the PDF. */
+@media screen, pagedjs-ignore {
   body {
     background-color: #dcdcdc;
     width: auto;

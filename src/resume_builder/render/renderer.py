@@ -7,7 +7,11 @@ from mdit_py_plugins.attrs import attrs_block_plugin
 from mdit_py_plugins.container import container_plugin
 from mdit_py_plugins.front_matter import front_matter_plugin
 
-from resume_builder.conventions import CONTAINER_NAME
+from resume_builder.conventions import (
+    CONTAINER_NAME,
+    PATH_CSS_BUILTIN,
+    PATH_JS_BUILTIN,
+)
 from resume_builder.render.constants import CONTENT_KEY, CSS_KEY, JS_KEY, TOKEN_FRONT_MATTER
 from resume_builder.render.entries import wrap_entries
 
@@ -15,7 +19,7 @@ from resume_builder.render.entries import wrap_entries
 _env = Environment(loader=PackageLoader("resume_builder.render", "templates"))
 
 
-def _asset_list(key: str, value: object) -> list[str]:
+def _asset_list(value: object) -> list[str]:
     """Frontmatter asset entries as a list of paths — `css: a.css` and `css: [a.css]` both work."""
     if value is None:
         return []
@@ -23,7 +27,7 @@ def _asset_list(key: str, value: object) -> list[str]:
         return [value]
     if isinstance(value, list):
         return [str(item) for item in value]
-    raise ValueError(f"frontmatter '{key}' must be a string or a list, got {type(value).__name__}")
+    raise ValueError(f"frontmatter '{CSS_KEY}' must be a string or a list, got {type(value).__name__}")
 
 
 def build_parser() -> MarkdownIt:
@@ -49,18 +53,20 @@ def build_parser() -> MarkdownIt:
     )
 
 
-def render_resume(md_path: Path, output_path: Path) -> None:
+def render_resume(md_path: Path) -> Path:
     """Render a Markdown resume file into a standalone HTML file.
 
     Reads an optional YAML frontmatter block from `md_path` for
-    rendering options (`css`, `js` - one path or a list of paths), and
+    rendering options (`css` - one path or a list of paths), and
     converts the rest of the file's Markdown content into HTML via
     a Jinja2 template.
 
     Args:
         md_path: Path to the source `.md` file (as produced by
             `_write_model_to_markdown`, then optionally hand-edited).
-        output_path: Path the final `.html` file is written to.
+
+    Returns:
+        Path: The path to the generated HTML file.
     """
     if not md_path.is_file():
         raise FileNotFoundError(f"{md_path} does not exist or is not a file")
@@ -84,12 +90,20 @@ def render_resume(md_path: Path, output_path: Path) -> None:
     body_html = md.renderer.render(wrap_entries(tokens), md.options, env)
 
     template = _env.get_template("resume.html.j2")
+
+    # the built-in stylesheet first, then the frontmatter's, so a user theme wins;
+    # frontmatter cannot add scripts (CLAUDE.md "Frontmatter")
+    css = [PATH_CSS_BUILTIN] + _asset_list(frontmatter.get(CSS_KEY))
+
     final_html = template.render(
         **{
-            CSS_KEY: _asset_list(CSS_KEY, frontmatter.get(CSS_KEY)),
-            JS_KEY: _asset_list(JS_KEY, frontmatter.get(JS_KEY)),
+            CSS_KEY: css,
+            JS_KEY: [PATH_JS_BUILTIN],
             CONTENT_KEY: body_html,
         }
     )
 
-    output_path.write_text(final_html, encoding="utf-8")
+    html_path = md_path.with_suffix(".html")
+    html_path.write_text(final_html, encoding="utf-8")
+
+    return html_path

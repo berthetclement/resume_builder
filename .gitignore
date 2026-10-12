@@ -16,3 +16,6 @@ CLAUDE.local.md
 
 # --- coverage ---
 .coverage
+
+# --- Claude ---
+.claude/settings.local.json

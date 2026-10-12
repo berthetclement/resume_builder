@@ -34,16 +34,21 @@ the parser cannot drift apart. It may hold functions as long as they stay pure a
 only about the format; anything needing `FieldInfo`, `BaseModel`, `Token` or a `Path`
 belongs to `template/` or `render/` instead.
 
-### Heading levels — exactly three, fixed meaning
+### Heading levels — exactly four, fixed meaning
 
 | Level | Meaning | Where it comes from |
 |---|---|---|
 | `#` | document title (the person's name) | `MarkdownH1` hint on `Main.user_name` |
 | `##` | section title (`Contact Information`, `Work Experience`) | `Field(title=...)` on the `Resume` field |
 | `###` | entry title — **opens an `.entry` box** | `MarkdownH3` hint on the entry's first field (`Entry.title`, `TitledEntry.title`, `Main.title_position`) |
+| `####` | entry subtitle — **anchors the entry's metadata lines** | `MarkdownH4` hint on `Entry.subtitle`, and nowhere else |
 
 `main` is the only exception, and it needs no special-casing in code: it has no
 `Field(title=...)` (so no `##` is emitted) and it is the only section holding the `#`.
+
+`####` exists only inside an entry, right after its `###`. It does not open anything:
+`wrap_entries()` reacts to `h3` alone. Its job is to be the fixed point the metadata
+selectors count from — see "Entry field order".
 
 ### Section markup
 
@@ -58,7 +63,7 @@ One `::: section` per `Resume` field, `id` = the field name:
 
 ### Consultant Data Scientist
 
-Acme Corp
+#### Acme Corp
 
 Paris, France
 
@@ -74,7 +79,8 @@ Paris, France
 
 The line order inside the entry is not free — see "Entry field order" below. Each
 field is one **block**: a list field renders as `- item` lines joined by a single
-newline *inside* that one block, every other field renders as one bare line. No
+newline *inside* that one block, a field carrying a heading hint renders as that
+heading, every other field renders as one bare line. No
 field is optional: `_write_model_to_markdown` carries no `None` branch, so an
 optional field left unset would write the literal string "None" into the file.
 
@@ -108,7 +114,7 @@ inside a `::: section`, closing it at the next `###` or at the end of the contai
 - `main`'s `###` (the job headline) also produces an entry. Intentional — it mirrors
   pagedown's `--section-divs`, and `break-inside: avoid` keeping the headline with its
   paragraph is desirable.
-- The box is required: `break-inside: avoid` needs an element, and positional
+- The box is required: `break-inside: avoid` needs an element, and the metadata
   selectors must count *within* an entry, not across the whole section.
 
 **Nested containers were considered and rejected.** A second `entry` container gives
@@ -128,29 +134,38 @@ writer emits:
 |---|---|---|---|
 | sections | `contact`, `skills` | `languages` | `experiences`, `education`, `personal_projects` |
 | emits a `###` | no | yes | yes |
+| emits a `####` | no | no | yes |
 | gets an `.entry` box | no | yes | yes |
 
 `BriefEntry` holds free content under its `##` and nothing else. With no `###`,
 `wrap_entries()` has nothing to wrap and the positional contract below does not apply
 to it — the same situation as a section the user writes by hand as a plain list.
 
-**Three fixed-arity classes, not one class with optional fields.** The stylesheet
-addresses lines by index, and `nth-of-type` counts what is *present*, not what the
-model declares. Omitting a **trailing** field is harmless: the unmatched rules style
-nothing. Omitting a **middle** one shifts everything after it by one — an entry with
-dates but no location gets its start date styled as a location, with no exception and
-no failing test, visible only on the rendered page. Optional fields permit that hole;
-classes whose fields are all required forbid it, because every entry in a section then
-has the same shape.
+`TitledEntry` — and `main`, which has the same shape — has no `####`. Its paragraph
+therefore matches none of the metadata selectors and renders as plain prose. This is
+the point of the `####`: an entry without one has no metadata, and the stylesheet
+knows it without being told which section it is in. Before the `####`, metadata was
+counted from the start of the entry, so a `TitledEntry`'s prose sat in the subtitle
+slot and was styled as one.
 
-Hence the rule for any new entry class: its `<p>`-producing fields must be a **prefix**
-of the order in "Entry field order" below — optional by truncation, never by holes.
-`description` counts as one of those `<p>` fields when it is a plain `str`; only as a
-list does it escape the count, rendering as `<ul>`.
+**Three fixed-arity classes, not one class with optional fields.** The stylesheet
+addresses metadata lines by position after the `<h4>`, and a sibling chain counts what
+is *present*, not what the model declares. Omitting a **trailing** field is harmless:
+the unmatched rules style nothing. Omitting a **middle** one shifts everything after it
+by one — an entry with dates but no location gets its start date styled as a location,
+with no exception and no failing test, visible only on the rendered page. Optional
+fields permit that hole; classes whose fields are all required forbid it, because every
+entry in a section then has the same shape.
+
+Hence the rule for any new entry class: its fields must be a **prefix** of the order in
+"Entry field order" below — optional by truncation, never by holes. `description`
+counts as one of the `<p>` lines when it is a plain `str`; only as a list does it
+escape the count, rendering as `<ul>`. A class with metadata must start it with the
+`####` subtitle: lines with no `<h4>` before them are prose, not metadata.
 
 ### Entry field order
 
-Inside an entry, **position is meaning**. The stylesheet addresses fields by index, so
+Inside an entry, **position is meaning**. The stylesheet addresses fields by position, so
 the declaration order of a model's fields is a public contract, not an implementation
 detail: reordering them silently restyles the wrong thing, and neither mypy nor a
 presence-based test will notice.
@@ -164,20 +179,26 @@ reading the source. Here it is written down and pinned by a test.
 | Order | Field | Element | Selector |
 |---|---|---|---|
 | 1 | `title` | `<h3>` | `.entry > h3` |
-| 2 | `subtitle` | `<p>` | `.entry > p:nth-of-type(1)` |
-| 3 | `location` | `<p>` | `.entry > p:nth-of-type(2)` |
-| 4 | `start_date` | `<p>` | `.entry > p:nth-of-type(3)` |
-| 5 | `end_date` | `<p>` | `.entry > p:nth-of-type(4)` |
+| 2 | `subtitle` | `<h4>` | `.entry > h4` |
+| 3 | `location` | `<p>` | `.entry > h4 + p` |
+| 4 | `start_date` | `<p>` | `.entry > h4 + p + p` |
+| 5 | `end_date` | `<p>` | `.entry > h4 + p + p + p` |
 | 6 | `description` | `<ul><li>` | `.entry > ul > li` |
 
-**The child combinator is load-bearing.** Written `.entry p:nth-of-type(1)`, the
-selector also matches the `<p>` inside a loose list item — bullets separated by a
-blank line render as `<li><p>…</p></li>`, and that `<p>` is the first of its kind
-among its siblings, so it would pick up the styling meant for `subtitle`. The
-writer emits tight lists, but the user hand-edits this file.
+**No selector addresses "the first `<p>` of an entry".** Metadata is counted from the
+`<h4>` with adjacent-sibling combinators, never with `p:nth-of-type(n)` from the start
+of the entry: that form cannot tell a metadata line from prose, which is how a
+`TitledEntry`'s paragraph once came out bold. A `<p>` not preceded by an `<h4>` is
+prose and gets the default paragraph style.
 
-`description` is `str | list[str]`: as a list it becomes a `<ul>` and the indices above
-hold; as a plain string it becomes a fifth `<p>` instead.
+**Keep the child combinator on the anchor** — `.entry > h4`, not `.entry h4`. The
+whole chain then lives among the entry's direct children, and nothing nested (a loose
+list item renders as `<li><p>…</p></li>`) can enter it. The writer emits tight lists,
+but the user hand-edits this file.
+
+`description` is `str | list[str]`: as a list it becomes a `<ul>` and the positions
+above hold; as a plain string it becomes a fourth `<p>` after the `<h4>`
+(`.entry > h4 + p + p + p + p`).
 
 The test that guards this order is the one place that must **not** derive from the
 model. Presence tests should iterate `model_fields` so they survive format changes;
@@ -189,11 +210,12 @@ expected sequence out explicitly.
 Two different things, two different homes — do not mix them:
 
 - **Data** written as a heading → `Annotated` + `Field(json_schema_extra=...)`, via the
-  `MarkdownH1`/`MarkdownH3` aliases in `models/resume_model.py`. Use `json_schema_extra`,
-  never bare `Field(..., markdown=...)` — deprecated in pydantic v2, removed in v3.
-  The stored value is the heading **level** as an `int`, never the markup: pydantic types
-  that metadata as arbitrary JSON, so `heading_marker()` is the single place that turns it
-  back into `#`/`##`/`###` and rejects anything else. There is no `MarkdownH2`: see below.
+  `MarkdownH1`/`MarkdownH3`/`MarkdownH4` aliases in `models/resume_model.py`. Use
+  `json_schema_extra`, never bare `Field(..., markdown=...)` — deprecated in pydantic v2,
+  removed in v3. The stored value is the heading **level** as an `int`, never the markup:
+  pydantic types that metadata as arbitrary JSON, so `heading_marker()` is the single
+  place that turns it back into `#`/`##`/`###`/`####` and rejects anything else. There is
+  no `MarkdownH2`: see below.
 - **Labels** (section titles) → native `Field(title=...)`, read back via
   `model_fields[name].title`. The `##` never comes from an `Annotated` hint.
 
@@ -203,25 +225,54 @@ data and belongs in a field.
 
 ### Frontmatter
 
-An optional YAML block at the top of the file. Only `css` and `js` are read; each takes
-one path or a list of paths. Every other key is ignored — the block stays open for the
-user's own metadata, and closing it would turn every future key into a breaking change.
+An optional YAML block at the top of the file. Only `css` is read; it takes one path or
+a list of paths, relative to the `.md`. Every other key is ignored — the block stays
+open for the user's own metadata, and closing it would turn every future key into a
+breaking change.
 
-Two things are checked and raise: the block must be a mapping, and `css`/`js` must hold
-a string or a list. Nothing else is validated. We constrain the shape of what we read,
+Two things are checked and raise: the block must be a mapping, and `css` must hold a
+string or a list. Nothing else is validated. We constrain the shape of what we read,
 not the presence of what we do not.
+
+**`js` is not read, deliberately.** It used to be; it was dropped because no current
+need justifies it, and because a user script is not just a path to append: one that
+configures paged.js (`window.PagedConfig`, handlers) must load *before* the polyfill,
+anything else after it. That ordering deserves its own design the day a real need
+shows up. A `js:` key is now ordinary ignored metadata. For instrumenting a render
+(measuring boxes, waiting for pagination), inject the script from Playwright with
+`add_init_script` instead.
+
+### Assets and the rendered page
+
+`render_resume(md_path)` writes the HTML **next to the `.md`**, as
+`md_path.with_suffix(".html")`, and returns that path. There is no output-path
+argument, and that is load-bearing: every `href`/`src` in the page is relative, and
+the browser resolves it against the HTML file, not against the working directory.
+Writing the HTML anywhere else would break every link, silently.
+
+`init_resume()` copies the bundled assets into `resume_builder_files/` beside the `.md`
+(`force=True` overwrites every file of the same name, `theme.css` included). The page
+never points into the installed package: it depends only on what sits next to it.
+
+Load order in the page, fixed by the renderer:
+
+1. `resume_builder_files/resume.css` — always, first. The layout.
+2. the frontmatter `css` entries, in the order given — so a user stylesheet (typically
+   the copied `theme.css`, uncommented in the frontmatter) overrides the layout.
+3. `resume_builder_files/paged.polyfill.min.js` — always, the only script, last in
+   `<body>`, after the content it paginates.
 
 ### CSS
 
 Every section div carries both its `id` and `class="section"`, so levels never collide
 across sections — `#contact h2` and `#experiences h2` are styled independently, and
-`#experiences .entry > p:nth-of-type(1)` addresses one job's first line.
+`#experiences .entry > h4` addresses one job's subtitle.
 
 ## Architecture
 
 `Resume` (pydantic) → `_write_model_to_markdown()` generates a starter `.md` → the user
-hand-edits it → `render_resume()` parses that file directly into HTML via Jinja2 →
-`paged.js` → Playwright → PDF.
+hand-edits it → `render_resume()` parses that file directly into HTML via Jinja2,
+written next to it → `paged.js` → Playwright → PDF.
 
 pydantic appears only on the way *out*. Rendering never parses the user's edited
 Markdown back into a strict model — it walks the token stream directly, same as

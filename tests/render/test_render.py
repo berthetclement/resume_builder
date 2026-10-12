@@ -160,3 +160,6 @@ def test_init_then_render_produces_a_complete_page(tmp_path: Path) -> None:
     assert '<div id="contact" class="section">' in html
     assert '<div id="experiences" class="section">' in html
     assert '<div class="entry">' in html
+
+    for ref in re.findall(r'(?:href|src)="([^"]+)"', html):
+        assert (output_path.parent / ref).is_file(), ref

@@ -10,12 +10,15 @@ dist/
 *.egg-info/
 src/resume_builder/_version.py
 
-# --- Other ---
+# --- Claude ---
 claude_private/
 CLAUDE.local.md
+.claude/settings.local.json
 
 # --- coverage ---
 .coverage
 
-# --- Claude ---
-.claude/settings.local.json
+# --- Pycharm ---
+.idea/
+
+

@@ -7,7 +7,7 @@ CUSTOM_FIELD = "markdown"
 
 
 # Conventions for Markdown headers
-HEADING_MARKERS = {1: "#", 2: "##", 3: "###"}
+HEADING_MARKERS = {1: "#", 2: "##", 3: "###", 4: "####"}
 
 
 # Heading levels for Markdown sections and entries

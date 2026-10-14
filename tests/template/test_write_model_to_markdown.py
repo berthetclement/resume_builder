@@ -1,6 +1,13 @@
 from itertools import pairwise
 
-from resume_builder.models.constants import CONTACT_SECTION_TITLE, EXPERIENCES_SECTION_TITLE
+from resume_builder.models.constants import (
+    CONTACT_SECTION_TITLE,
+    EDUCATION_SECTION_TITLE,
+    EXPERIENCES_SECTION_TITLE,
+    LANGUAGES_SECTION_TITLE,
+    PERSONAL_PROJECTS_SECTION_TITLE,
+    SKILLS_SECTION_TITLE,
+)
 from resume_builder.models.resume_model import Resume
 
 """Pin the Markdown contract that `_write_model_to_markdown` produces.
@@ -64,7 +71,11 @@ def test_section_title_comes_from_field_title(default_markdown_resume_content: s
     lines = default_markdown_resume_content.splitlines()
 
     assert f"## {CONTACT_SECTION_TITLE}" in lines
+    assert f"## {SKILLS_SECTION_TITLE}" in lines
     assert f"## {EXPERIENCES_SECTION_TITLE}" in lines
+    assert f"## {EDUCATION_SECTION_TITLE}" in lines
+    assert f"## {PERSONAL_PROJECTS_SECTION_TITLE}" in lines
+    assert f"## {LANGUAGES_SECTION_TITLE}" in lines
 
 
 def test_main_has_no_section_title(default_markdown_resume_content: str) -> None:
@@ -84,6 +95,7 @@ def test_heading_hint_drives_the_level(default_resume: Resume, default_markdown_
 
     # Entry class
     assert f"### {default_resume.experiences[0].title}" in lines  # MarkdownH3
+    assert f"#### {default_resume.experiences[0].subtitle}" in lines  # MarkdownH4
 
     # TitledEntry class
     assert f"### {default_resume.languages[0].title}" in lines  # MarkdownH3
@@ -113,21 +125,18 @@ def test_fields_are_separated_by_blank_lines(default_markdown_resume_content: st
 
 
 def test_generated_markdown_is_evenly_spaced(default_markdown_resume_content: str) -> None:
-    """Ergonomics: the generated file is meant to be opened and hand-edited.
-
-    Every content line gets its own blank line, uniformly — including after headings,
-    where CommonMark would not require it. If this fails, the output just got denser;
-    update the expectation if the spacing changed on purpose.
-    """
+    """no two non-empty lines touch, except bullets of one list"""
     for field_name in Resume.model_fields:
-        body = _section_lines(default_markdown_resume_content, field_name)[2:]
+        body = _section_lines(default_markdown_resume_content, field_name)
 
         for previous, current in pairwise(body):
             if previous and current:
-                assert previous.startswith("- ") and current.startswith("- ")
+                assert previous.startswith("- ") and current.startswith("- "), (
+                    f"{field_name}: {previous!r} then {current!r} are non-empty lines"
+                )
 
 
-# "Experience" is only section who need a strict positioning to be used then by CSS
+# "Entry" is a type ofsection who need a strict positioning to be used then by CSS
 def test_experience_fields_appear_in_the_imposed_order(
     default_resume: Resume, default_markdown_resume_content: str
 ) -> None:
@@ -139,7 +148,7 @@ def test_experience_fields_appear_in_the_imposed_order(
     # then
     expected = [
         f"### {entry.title}",
-        entry.subtitle,
+        f"#### {entry.subtitle}",
         entry.location,
         entry.start_date,
         entry.end_date,

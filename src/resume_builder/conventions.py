@@ -17,7 +17,7 @@ def heading_marker(level: object) -> str | None:
     pydantic types that metadata as arbitrary JSON, so the value arrives
     untyped; anything outside `HEADING_MARKERS` means "not a heading".
     """
-    if isinstance(level, bool) or not isinstance(level, int):
+    if type(level) is not int:
         return None
     return HEADING_MARKERS.get(level)
 

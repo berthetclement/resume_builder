@@ -18,7 +18,7 @@ EXPERIENCES = """{#experiences}
 
 ### Developer
 
-Acme Corp
+#### Acme Corp
 
 Boston, MA
 
@@ -28,7 +28,7 @@ Boston, MA
 
 ### Engineer
 
-Globex
+#### Globex
 
 New York, NY
 
@@ -54,14 +54,14 @@ def test_entry_keeps_heading_and_content_together() -> None:
     # then — the first entry holds its own heading, subheading and both dates
     first_entry = re.findall(r'<div class="entry">(.*?)</div>', html, re.S)[0]
     assert "<h3>Developer</h3>" in first_entry
-    assert "<p>Acme Corp</p>" in first_entry
+    assert "<h4>Acme Corp</h4>" in first_entry
     assert "<p>Boston, MA</p>" in first_entry
     assert "<p>2020</p>" in first_entry
     assert "<p>2021</p>" in first_entry
 
     second_entry = re.findall(r'<div class="entry">(.*?)</div>', html, re.S)[1]
     assert "<h3>Engineer</h3>" in second_entry
-    assert "<p>Globex</p>" in second_entry
+    assert "<h4>Globex</h4>" in second_entry
     assert "<p>New York, NY</p>" in second_entry
     assert "<p>2021</p>" in second_entry
     assert "<p>2022</p>" in second_entry

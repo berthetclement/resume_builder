@@ -118,19 +118,18 @@ def test_section_id_and_class_survive_the_transform() -> None:
 
 
 def test_heading_deeper_than_an_entry_stays_inside_it() -> None:
-    # given — a user subdividing one job, as pagedown resumes commonly do
+    # given
     markdown = (
-        "{#experiences}\n::: section\n## WORK EXPERIENCE\n\n"
-        "### Developer\n\nAcme Corp\n\n#### Achievements\n\nShipped things.\n\n:::"
+        "{#experiences}\n::: section\n## WORK EXPERIENCE\n\n### Developer\n\n#### Acme Corp\n\nBLABLA WATHEVER\n\n:::"
     )
 
     # when
     html = _render(markdown)
 
-    # then — the h4 belongs to the job, it does not open a new box
+    # then the h4 belongs to the job, it does not open a new box
     assert html.count('<div class="entry">') == 1
     entry = re.findall(r'<div class="entry">(.*?)</div>', html, re.S)[0]
-    assert "<h4>Achievements</h4>" in entry
+    assert "<h4>Acme Corp</h4>" in entry
 
 
 def test_entry_divs_are_balanced() -> None:

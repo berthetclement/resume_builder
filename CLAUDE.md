@@ -157,6 +157,12 @@ with no exception and no failing test, visible only on the rendered page. Option
 fields permit that hole; classes whose fields are all required forbid it, because every
 entry in a section then has the same shape.
 
+**An empty value is a hole too.** A field set to `""` writes an empty block; CommonMark
+collapses the extra blank line and emits no `<p>`, so the next line moves into its slot
+exactly as if the field were missing (measured). Required is not non-empty: a default
+of `""` and an explicit `location=""` both produce it. Only the default is forbidden
+today, by the all-fields-required test; an explicit empty value is not checked.
+
 Hence the rule for any new entry class: its fields must be a **prefix** of the order in
 "Entry field order" below — optional by truncation, never by holes. `description`
 counts as one of the `<p>` lines when it is a plain `str`; only as a list does it

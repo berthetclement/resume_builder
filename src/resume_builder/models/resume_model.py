@@ -23,6 +23,11 @@ MarkdownH3 = Annotated[
     Field(json_schema_extra={CUSTOM_FIELD: 3}),
 ]
 
+MarkdownH4 = Annotated[
+    str,
+    Field(json_schema_extra={CUSTOM_FIELD: 4}),
+]
+
 
 # Every model class below keeps all its fields required. Making one optional
 # (`str | None = None`) would also mean teaching `_write_model_to_markdown` to
@@ -47,7 +52,7 @@ class TitledEntry(BaseModel):
 
 class Entry(BaseModel):
     title: MarkdownH3
-    subtitle: str
+    subtitle: MarkdownH4
     location: str
     start_date: str
     end_date: str

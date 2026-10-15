@@ -58,7 +58,7 @@ select = ["E", "F", "I", "UP", "B", "SIM"]  # errors, pyflakes, isort, pyupgrade
 [tool.mypy]
 strict = true
 warn_unreachable = true
-enable_error_code = ["explicit-override"]
+enable_error_code = ["explicit-override", "deprecated"]
 
 [tool.tox]
 env_list = ["py311", "py312", "py313", "lint", "type"]

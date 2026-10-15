@@ -51,6 +51,17 @@ An entry with no `<h4>` has no metadata, so its `<p>` match nothing and stay pro
 Keep `>` on the anchor (`.entry > h4`): the chain then stays among the entry's direct
 children, and a `<p>` inside a loose list item (`<li><p>…</p></li>`) cannot enter it.
 
+**`+` and `nth-of-type` selectors are rewritten to (0,1,0).**
+*Symptom:* the metadata chain styles nothing; dates land in the text column and
+take the prose font size, while `.entry > h4` itself still works.
+Paged.js removes every rule whose selector contains `+` (or `:nth-of-type`,
+`:first-of-type`, `:last-of-type`), tags the matching elements with
+`data-following` (or `data-nth-of-type`) and re-inserts the declarations as
+`*[data-following*="following-..."]`, specificity (0,1,0). Any rule of (0,1,1) or
+more on the same element wins, whatever the source order. So a catch-all for the
+`<p>` the chain does not claim must be written `:where(.entry > p)`, zero
+specificity. Measured on 0.4.3.
+
 **Entry content is a grid, decoration is absolute.**
 *Symptom:* dates overlap or blur in the paginated output.
 Absolutely positioned content reserves no space, so paged.js lays it out on top of
@@ -122,6 +133,3 @@ document. Assert something a blank page cannot satisfy.
 - Page margins and the sidebar band are wider than they should be.
 - `--text-family` names a font nothing loads, so everything renders in the fallback.
   Naming a font is not shipping it; the rendering machine must already have it.
-- Until the `####` subtitle lands in the model and `resume.css` (decided 2026-10-12,
-  tracked in `claude_private/pipeline-schema.md`), the stylesheet still uses
-  `p:nth-of-type(n)`, so prose in a `TitledEntry` and in `main` still comes out bold.

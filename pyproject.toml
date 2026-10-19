@@ -17,6 +17,11 @@ dependencies = [
 [project.scripts]
 resume-builder = "resume_builder:main"
 
+[project.optional-dependencies]
+pdf = [
+    "playwright>=1.64.0",
+]
+
 [build-system]
 requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
@@ -37,7 +42,8 @@ type = [
     "types-pyyaml>=6.0.12.20260815",
 ]
 test = ["pytest>=9.1.1",
-    "pytest-cov>=7.1.0"]
+    "pytest-cov>=7.1.0",
+    "resume-builder[pdf]"]
 
 dev = [
     {include-group = "lint"},
@@ -60,13 +66,18 @@ strict = true
 warn_unreachable = true
 enable_error_code = ["explicit-override", "deprecated"]
 
+[tool.pytest.ini_options]
+markers = ["pdf: needs Playwright + Chromium"]
+
 [tool.tox]
 env_list = ["py311", "py312", "py313", "lint", "type"]
 
 [tool.tox.env_run_base]
 description = "Run tests under {base_python}"
 dependency_groups = ["test"]
-commands = [["pytest"]]
+runner = "uv-venv-lock-runner"
+package = "wheel"
+commands = [["pytest", { replace = "posargs", extend = true }]]
 
 [tool.tox.env.lint]
 description = "Run ruff lint + format checks"
@@ -82,4 +93,4 @@ dependency_groups = ["type", "test"]
 commands = [["mypy", "src", "tests"]]
 
 [tool.tox.env.py313]
-commands = [["pytest", "--cov=resume_builder", "--cov-report=term-missing"]]
+set_env = { PYTEST_ADDOPTS = "--cov=resume_builder --cov-report=term-missing" }

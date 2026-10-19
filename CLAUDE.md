@@ -308,15 +308,20 @@ are), `css-layout-notes.md`, `devops-setup.md`, `project-goals.md`.
 - Build backend: **hatchling**.
 - Python version: floor `>=3.11` (`requires-python`), dev on **3.13**.
 - Runtime dependencies: **markdown-it-py[plugins]** (Markdown parsing, incl. `mdit-py-plugins` for Pandoc-style attributes/fenced-divs/frontmatter), **pydantic** (structured resume data model).
+- Optional extra `[pdf]`: **playwright**, for `render_pdf()`. The base install renders HTML only (the user can print it from a browser); `pip install resume-builder[pdf]` adds the PDF step. Chromium is a browser binary, not a Python package: it is installed apart, once per machine, with `uv run playwright install chromium`.
 - Dev tooling: **ruff** (lint + format), **mypy** (strict), **pytest**, **pre-commit**, **tox** (+ `tox-uv`).
-- Dev dependencies are split into PEP 735 groups in `pyproject.toml`: `lint`, `type`, `test`, and `dev` (which includes all three plus `pre-commit`/`tox`/`tox-uv`). Plain `uv sync` installs everything via the `dev` group.
+- Dev dependencies are split into PEP 735 groups in `pyproject.toml`: `lint`, `type`, `test`, and `dev` (which includes all three plus `pre-commit`/`tox`/`tox-uv`). Plain `uv sync` installs everything via the `dev` group. A developer gets everything: `test` lists `resume-builder[pdf]` (the project itself with its extra), so Playwright comes with it; `include-group` cannot reference an extra.
+- tox runs on tox-uv's `uv-venv-lock-runner` with `package = "wheel"` (`[tool.tox.env_run_base]`). Every env is built by `uv sync --locked` from `uv.lock`, same as `.venv`, so tox and `.venv` never disagree on a version — and Playwright always matches the Chromium revision installed from the lock (each Playwright release expects its own). The lock moves only when you move it (`uv add`, `uv lock --upgrade`), never as a side effect of tox recreating an env. `package = "wheel"` overrides the runner's `editable` default: tests run against the built wheel, not `src/`, so a non-`.py` file missing from the wheel (template, CSS, polyfill) fails the suite instead of passing silently. Trade-off accepted: CI no longer sees new dependency releases on its own; that signal is meant to come from lock upgrades in their own PR, never mixed into a feature.
 - CI: GitHub Actions (`.github/workflows/ci.yml`), matrix over Windows/Linux/macOS, on every push to any branch. Ubuntu runs the full tox matrix (`py311`/`py312`/`py313`/`lint`/`type`); Windows/macOS only run the `py311`/`py312`/`py313` test envs (lint/type are OS-independent, no need to repeat them, and macOS Actions minutes are the most constrained).
+- PDF tests in CI: **Ubuntu and Windows, not macOS.** Many users are on Windows, so it cannot be skipped; macOS is the slowest and most limited runner. PDF tests carry the pytest marker `pdf`; macOS runs `-m "not pdf"`. The exclusion is explicit, never "skip when Chromium is missing": a broken install would then turn every PDF test into a silent skip on a green CI. Chromium is installed by one step **per OS**: Ubuntu with `--with-deps` (system libraries), Windows without it, because on Windows Server `--with-deps` installs the Server-Media-Foundation feature (read in Playwright 1.64's `install_media_pack.ps1`), useless for a PDF.
 - Versioning: **hatch-vcs** derives the package version from git (tags/commit distance), not a hand-edited `version` field. `src/resume_builder/_version.py` is generated automatically on every `uv sync`/build — it's gitignored, never edited by hand, and exposed as `resume_builder.__version__`. Requires an actual git clone (with history) to resolve correctly; a ZIP download or shallow clone won't compute the version properly.
 
 ## Available commands
 
 ```bash
 uv sync                                    # installs deps (project + dev group) and creates/syncs the .venv
+uv run playwright install chromium         # one-time per machine: the browser render_pdf() drives
+uv run playwright install --list           # where Chromium is installed, and for which Playwright version
 uv build                                   # generates wheel + sdist in dist/
 uv run python -c "import resume_builder"   # sanity-checks that the package imports
 

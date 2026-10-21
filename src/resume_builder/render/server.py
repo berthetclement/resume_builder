@@ -11,18 +11,14 @@ _HOST = "127.0.0.1"
 
 @contextmanager
 def local_server(directory: Path) -> Generator[str, None, None]:
-    """Serve `directory` over HTTP for the duration of a `with` block.
+    """Serve local HTTP.
 
-    Yields the base URL (`http://127.0.0.1:<port>`). The server is stopped when the
-    block exits, even if it raises.
+    Yields the base URL (`http://127.0.0.1:<port>`)
     """
-    # Runs on entering the `with`, before anything is started.
     if not directory.is_dir():
         raise NotADirectoryError(f"{directory} does not exist or is not a directory")
 
-    # The server builds one handler per request and passes only (request, address,
-    # server), so partial pre-fills `directory`; without it the handler would serve
-    # the current working directory.
+    # The server builds one handler per request and passes only (request, address, server)
     handler = partial(SimpleHTTPRequestHandler, directory=str(directory))
 
     # Port 0 lets the OS pick a free port. Leaving this `with` calls server_close(),
@@ -33,7 +29,7 @@ def local_server(directory: Path) -> Generator[str, None, None]:
         # serve_forever() blocks until shutdown(): run it in a background thread so
         # the caller's `with` body can run meanwhile. daemon=True: a forgotten thread
         # never keeps Python from exiting.
-        Thread(target=server.serve_forever, daemon=True).start()
+        Thread(target=server.serve_forever, kwargs={"poll_interval": 0.05}, daemon=True).start()
 
         try:
             # Pause here: the caller's `with` body runs, with this URL as its value.

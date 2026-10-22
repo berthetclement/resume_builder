@@ -254,7 +254,8 @@ shows up. A `js:` key is now ordinary ignored metadata. For instrumenting a rend
 `md_path.with_suffix(".html")`, and returns that path. There is no output-path
 argument, and that is load-bearing: every `href`/`src` in the page is relative, and
 the browser resolves it against the HTML file, not against the working directory.
-Writing the HTML anywhere else would break every link, silently.
+Writing the HTML anywhere else would break every link, silently. `render_pdf(md_path)`
+follows the same rule: the PDF lands next to the `.md` too.
 
 `init_resume()` copies the bundled assets into `resume_builder_files/` beside the `.md`
 (`force=True` overwrites every file of the same name, `theme.css` included). The page
@@ -279,6 +280,30 @@ across sections — `#contact h2` and `#experiences h2` are styled independently
 `Resume` (pydantic) → `_write_model_to_markdown()` generates a starter `.md` → the user
 hand-edits it → `render_resume()` parses that file directly into HTML via Jinja2,
 written next to it → `paged.js` → Playwright → PDF.
+
+`render_pdf(md_path)` (`render/renderer_pdf.py`) is the whole chain in one call, and
+writes the PDF next to the `.md` as `md_path.with_suffix(".pdf")`. Its contract is **a
+paginated PDF or an exception, never a blank PDF**: `page.pdf()` happily prints a page
+paged.js never touched, with no error. In order:
+
+1. `importlib.util.find_spec("playwright")`, before anything else: without the `[pdf]`
+   extra, an `ImportError` naming `resume-builder[pdf]`. Playwright itself is imported
+   only inside the function, so `import resume_builder` works on the base install.
+2. `render_resume(md_path)`, always: it checks the `.md`, and a PDF built from an HTML
+   left over from an earlier render could silently lag behind the edited file.
+3. `resume_builder_files/` must sit next to the `.md` (`NotADirectoryError`), checked
+   here rather than discovered as a timeout.
+4. `_html_to_pdf()`, private, trusts its caller and does not re-check the HTML. It
+   serves the folder with `local_server()` (`render/server.py`: `127.0.0.1`, port 0,
+   stopped on exit even on error), never `file://`: paged.js re-fetches stylesheets over
+   XHR, which Chromium blocks there, and pagination never runs. It drives Playwright's
+   bundled Chromium (no `channel=`: a bare Ubuntu has no Chrome) and waits for paged.js
+   itself: an init script sets `window.PagedConfig.after`, registered **before**
+   `goto()` because the polyfill reads its config once, on load. No fixed sleep, no
+   `networkidle`. A timeout (`_PAGED_TIMEOUT_MS`) becomes a `RuntimeError` carrying the
+   page's JavaScript errors. `print_background=True` (the sidebar band is a CSS
+   background) and `prefer_css_page_size=True` (`@page` decides the format) are both
+   load-bearing.
 
 pydantic appears only on the way *out*. Rendering never parses the user's edited
 Markdown back into a strict model — it walks the token stream directly, same as

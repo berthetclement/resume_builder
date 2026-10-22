@@ -67,6 +67,11 @@ def render_resume(md_path: Path) -> Path:
 
     Returns:
         Path: The path to the generated HTML file.
+
+    Raises:
+        FileNotFoundError: `md_path` does not exist.
+        ValueError: `md_path` is empty, or its frontmatter is not a mapping,
+            or its `css` entry is neither a string nor a list.
     """
     if not md_path.is_file():
         raise FileNotFoundError(f"{md_path} does not exist or is not a file")

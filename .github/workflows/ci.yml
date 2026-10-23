@@ -25,10 +25,22 @@ jobs:
       - name: Sync dependencies
         run: uv sync
 
+      - name: Install Chromium (Ubuntu, with system libs)
+        if: matrix.os == 'ubuntu-latest'
+        run: uv run playwright install --with-deps chromium
+
+      - name: Install Chromium (Windows)
+        if: matrix.os == 'windows-latest'
+        run: uv run playwright install chromium
+
       - name: Run full tox matrix (lint, type, tests)
         if: matrix.os == 'ubuntu-latest'
         run: uv run tox
 
-      - name: Run tests only
-        if: matrix.os != 'ubuntu-latest'
+      - name: Run tests only (Windows)
+        if: matrix.os == 'windows-latest'
         run: uv run tox -e py311,py312,py313
+
+      - name: Run tests only, no PDF (macOS)
+        if: matrix.os == 'macos-latest'
+        run: uv run tox -e py311,py312,py313 -- -m "not pdf"

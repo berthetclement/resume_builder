@@ -254,7 +254,8 @@ shows up. A `js:` key is now ordinary ignored metadata. For instrumenting a rend
 `md_path.with_suffix(".html")`, and returns that path. There is no output-path
 argument, and that is load-bearing: every `href`/`src` in the page is relative, and
 the browser resolves it against the HTML file, not against the working directory.
-Writing the HTML anywhere else would break every link, silently.
+Writing the HTML anywhere else would break every link, silently. `render_pdf(md_path)`
+follows the same rule: the PDF lands next to the `.md` too.
 
 `init_resume()` copies the bundled assets into `resume_builder_files/` beside the `.md`
 (`force=True` overwrites every file of the same name, `theme.css` included). The page
@@ -279,6 +280,30 @@ across sections — `#contact h2` and `#experiences h2` are styled independently
 `Resume` (pydantic) → `_write_model_to_markdown()` generates a starter `.md` → the user
 hand-edits it → `render_resume()` parses that file directly into HTML via Jinja2,
 written next to it → `paged.js` → Playwright → PDF.
+
+`render_pdf(md_path)` (`render/renderer_pdf.py`) is the whole chain in one call, and
+writes the PDF next to the `.md` as `md_path.with_suffix(".pdf")`. Its contract is **a
+paginated PDF or an exception, never a blank PDF**: `page.pdf()` happily prints a page
+paged.js never touched, with no error. In order:
+
+1. `importlib.util.find_spec("playwright")`, before anything else: without the `[pdf]`
+   extra, an `ImportError` naming `resume-builder[pdf]`. Playwright itself is imported
+   only inside the function, so `import resume_builder` works on the base install.
+2. `render_resume(md_path)`, always: it checks the `.md`, and a PDF built from an HTML
+   left over from an earlier render could silently lag behind the edited file.
+3. `resume_builder_files/` must sit next to the `.md` (`NotADirectoryError`), checked
+   here rather than discovered as a timeout.
+4. `_html_to_pdf()`, private, trusts its caller and does not re-check the HTML. It
+   serves the folder with `local_server()` (`render/server.py`: `127.0.0.1`, port 0,
+   stopped on exit even on error), never `file://`: paged.js re-fetches stylesheets over
+   XHR, which Chromium blocks there, and pagination never runs. It drives Playwright's
+   bundled Chromium (no `channel=`: a bare Ubuntu has no Chrome) and waits for paged.js
+   itself: an init script sets `window.PagedConfig.after`, registered **before**
+   `goto()` because the polyfill reads its config once, on load. No fixed sleep, no
+   `networkidle`. A timeout (`_PAGED_TIMEOUT_MS`) becomes a `RuntimeError` carrying the
+   page's JavaScript errors. `print_background=True` (the sidebar band is a CSS
+   background) and `prefer_css_page_size=True` (`@page` decides the format) are both
+   load-bearing.
 
 pydantic appears only on the way *out*. Rendering never parses the user's edited
 Markdown back into a strict model — it walks the token stream directly, same as
@@ -308,15 +333,20 @@ are), `css-layout-notes.md`, `devops-setup.md`, `project-goals.md`.
 - Build backend: **hatchling**.
 - Python version: floor `>=3.11` (`requires-python`), dev on **3.13**.
 - Runtime dependencies: **markdown-it-py[plugins]** (Markdown parsing, incl. `mdit-py-plugins` for Pandoc-style attributes/fenced-divs/frontmatter), **pydantic** (structured resume data model).
+- Optional extra `[pdf]`: **playwright**, for `render_pdf()`. The base install renders HTML only (the user can print it from a browser); `pip install resume-builder[pdf]` adds the PDF step. Chromium is a browser binary, not a Python package: it is installed apart, once per machine, with `uv run playwright install chromium`.
 - Dev tooling: **ruff** (lint + format), **mypy** (strict), **pytest**, **pre-commit**, **tox** (+ `tox-uv`).
-- Dev dependencies are split into PEP 735 groups in `pyproject.toml`: `lint`, `type`, `test`, and `dev` (which includes all three plus `pre-commit`/`tox`/`tox-uv`). Plain `uv sync` installs everything via the `dev` group.
+- Dev dependencies are split into PEP 735 groups in `pyproject.toml`: `lint`, `type`, `test`, and `dev` (which includes all three plus `pre-commit`/`tox`/`tox-uv`). Plain `uv sync` installs everything via the `dev` group. A developer gets everything: `test` lists `resume-builder[pdf]` (the project itself with its extra), so Playwright comes with it; `include-group` cannot reference an extra.
+- tox runs on tox-uv's `uv-venv-lock-runner` with `package = "wheel"` (`[tool.tox.env_run_base]`). Every env is built by `uv sync --locked` from `uv.lock`, same as `.venv`, so tox and `.venv` never disagree on a version — and Playwright always matches the Chromium revision installed from the lock (each Playwright release expects its own). The lock moves only when you move it (`uv add`, `uv lock --upgrade`), never as a side effect of tox recreating an env. `package = "wheel"` overrides the runner's `editable` default: tests run against the built wheel, not `src/`, so a non-`.py` file missing from the wheel (template, CSS, polyfill) fails the suite instead of passing silently. Trade-off accepted: CI no longer sees new dependency releases on its own; that signal is meant to come from lock upgrades in their own PR, never mixed into a feature.
 - CI: GitHub Actions (`.github/workflows/ci.yml`), matrix over Windows/Linux/macOS, on every push to any branch. Ubuntu runs the full tox matrix (`py311`/`py312`/`py313`/`lint`/`type`); Windows/macOS only run the `py311`/`py312`/`py313` test envs (lint/type are OS-independent, no need to repeat them, and macOS Actions minutes are the most constrained).
+- PDF tests in CI: **Ubuntu and Windows, not macOS.** Many users are on Windows, so it cannot be skipped; macOS is the slowest and most limited runner. PDF tests carry the pytest marker `pdf`; macOS runs `-m "not pdf"`. The exclusion is explicit, never "skip when Chromium is missing": a broken install would then turn every PDF test into a silent skip on a green CI. Chromium is installed by one step **per OS**: Ubuntu with `--with-deps` (system libraries), Windows without it, because on Windows Server `--with-deps` installs the Server-Media-Foundation feature (read in Playwright 1.64's `install_media_pack.ps1`), useless for a PDF.
 - Versioning: **hatch-vcs** derives the package version from git (tags/commit distance), not a hand-edited `version` field. `src/resume_builder/_version.py` is generated automatically on every `uv sync`/build — it's gitignored, never edited by hand, and exposed as `resume_builder.__version__`. Requires an actual git clone (with history) to resolve correctly; a ZIP download or shallow clone won't compute the version properly.
 
 ## Available commands
 
 ```bash
 uv sync                                    # installs deps (project + dev group) and creates/syncs the .venv
+uv run playwright install chromium         # one-time per machine: the browser render_pdf() drives
+uv run playwright install --list           # where Chromium is installed, and for which Playwright version
 uv build                                   # generates wheel + sdist in dist/
 uv run python -c "import resume_builder"   # sanity-checks that the package imports
 

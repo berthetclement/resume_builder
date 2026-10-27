@@ -1,4 +1,3 @@
-import re
 from pathlib import Path
 
 import pytest
@@ -8,75 +7,91 @@ from resume_builder.conventions import (
     ASSET_CSS_USER_FILE_NAME,
     ASSET_JS_BUILTIN_FILE_NAME,
     ASSETS_FOLDER_NAME,
-    INIT_FOLDER_NAME,
     INIT_RESUME_FILE_NAME,
 )
 from resume_builder.template.markdown_writer import init_resume
 
 
-def test_init_resume_default(tmp_path: Path) -> None:
-    """Check if all files are created in the target directory."""
-    # when
-    init_resume(target_dir=tmp_path)
-
+def test_init_resume_raise_wrong_extension() -> None:
     # then
-    init_resume_path = tmp_path / INIT_FOLDER_NAME
-    init_resume_assets_path = init_resume_path / ASSETS_FOLDER_NAME
-    test_resume_path = init_resume_path / INIT_RESUME_FILE_NAME
-    assert test_resume_path.exists()
-    test_css_path = init_resume_assets_path / ASSET_CSS_BUILTIN_FILE_NAME
-    assert test_css_path.exists()
-    test_js_path = init_resume_assets_path / ASSET_JS_BUILTIN_FILE_NAME
-    assert test_js_path.exists()
-    test_user_css_path = init_resume_assets_path / ASSET_CSS_USER_FILE_NAME
-    assert test_user_css_path.exists()
+    with pytest.raises(ValueError, match="Only '.md' extension is accepted"):
+        init_resume(path="wrong_file.txt")
 
 
-def test_init_resume_raise_overwrite(tmp_path: Path) -> None:
-    # when
-    test_resume_path = tmp_path / INIT_FOLDER_NAME / INIT_RESUME_FILE_NAME
-    init_resume(target_dir=tmp_path)
-
-    # then
-    with pytest.raises(
-        FileExistsError, match=re.escape(f"{test_resume_path} already exists — pass force=True to overwrite")
-    ):
-        init_resume(target_dir=tmp_path)
-
-
-def test_init_resume_accept_overwrite(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    "given",
+    [
+        "resume",
+        "tests/resume",
+    ],
+)
+def test_init_resume_raise_for_existing_dir(given: str, tmp_path: Path) -> None:
     # given
-    init_resume(target_dir=tmp_path)
+    init_path = tmp_path / given
+    md_path = init_resume(path=init_path)
 
-    # when
-    init_resume(target_dir=tmp_path, force=True)
+    # update an asset to test a file inside is preserved
+    css_path = md_path.parent / ASSETS_FOLDER_NAME / ASSET_CSS_USER_FILE_NAME
+    with css_path.open("a") as myfile:
+        myfile.write("\nappended text")
+    before = css_path.read_text()
 
     # then
-    test_resume_path = tmp_path / INIT_FOLDER_NAME / INIT_RESUME_FILE_NAME
-    assert test_resume_path.exists()
+    with pytest.raises(FileExistsError):
+        init_resume(path=init_path)
+    assert before == css_path.read_text()
 
 
-def test_init_resume_with_directory(tmp_path: Path) -> None:
+def test_init_resume_raise_for_empty_existing_dir(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     # given
-    target_dir = tmp_path / "subdir"
+    monkeypatch.chdir(tmp_path)
 
-    # when
-    init_resume(target_dir=target_dir)
+    path = tmp_path / "empty"
+    path.mkdir()
 
     # then
-    init_resume_path = target_dir / INIT_FOLDER_NAME
-    test_resume_path = init_resume_path / INIT_RESUME_FILE_NAME
-
-    assert test_resume_path.exists()
+    with pytest.raises(FileExistsError):
+        init_resume(path="empty")
 
 
-def test_init_resume_with_name(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    ("given", "expected"),
+    [
+        ("resume", "resume/resume.md"),
+        ("tests/resume", "tests/resume/resume.md"),
+        ("resume.md", "resume/resume.md"),
+        ("tests/resume.md", "tests/resume/resume.md"),
+    ],
+)
+def test_init_resume_md_path(given: str, expected: str, tmp_path: Path) -> None:
     # given
-    name_file = "my_resume.md"
+    init_path = tmp_path / given
 
     # when
-    init_resume(target_dir=tmp_path, filename=name_file)
+    output_path_file = init_resume(path=init_path)
 
     # then
-    test_resume_path = tmp_path / INIT_FOLDER_NAME / name_file
-    assert test_resume_path.exists()
+    assert output_path_file == tmp_path / expected
+
+
+def test_init_resume_default(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Check if all files are created in the target directory.
+    - .md file
+    - folder for assets
+    - asset files
+    """
+    # given
+    monkeypatch.chdir(tmp_path)
+
+    # when
+    output_path_file = init_resume()
+
+    # then
+    root = Path("resume")
+    assert output_path_file == root / INIT_RESUME_FILE_NAME
+    assert output_path_file.is_file()
+
+    assets_name_file = [ASSET_CSS_BUILTIN_FILE_NAME, ASSET_CSS_USER_FILE_NAME, ASSET_JS_BUILTIN_FILE_NAME]
+    for asset in assets_name_file:
+        path = output_path_file.parent / ASSETS_FOLDER_NAME / asset
+        assert path.is_file()

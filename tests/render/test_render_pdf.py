@@ -31,7 +31,8 @@ def test_html_pdf_without_js(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) ->
 @pytest.mark.pdf
 def test_html_pdf_works(tmp_path: Path) -> None:
     # given
-    md_path = init_resume(target_dir=tmp_path / "test_pdf")
+    test_path = tmp_path / "test_pdf"
+    md_path = init_resume(path=test_path)
     output_path = render_resume(md_path)
 
     # then
@@ -77,7 +78,8 @@ def test_render_pdf_with_no_asset_folder(tmp_path: Path) -> None:
 @pytest.mark.pdf
 def test_render_pdf_works(tmp_path: Path) -> None:
     # given
-    md_path = init_resume(target_dir=tmp_path / "test_render_pdf")
+    test_path = tmp_path / "test_render_pdf"
+    md_path = init_resume(path=test_path)
 
     # then
     output_pdf_path = render_pdf(md_path)

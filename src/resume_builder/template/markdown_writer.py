@@ -11,7 +11,6 @@ from resume_builder.conventions import (
     CUSTOM_FIELD,
     FENCE_CLOSE,
     FENCE_OPEN,
-    INIT_FOLDER_NAME,
     INIT_RESUME_FILE_NAME,
     SECTION_BREAK,
     SECTION_TITLE_LEVEL,
@@ -81,33 +80,38 @@ def _write_model_to_markdown(model: Resume, file_path: Path) -> None:
     file_path.write_text(document + "\n", encoding="utf-8")
 
 
-def init_resume(
-    target_dir: Path = Path("."),
-    filename: str = INIT_RESUME_FILE_NAME,
-    force: bool = False,
-) -> Path:
+def init_resume(path: str | Path = INIT_RESUME_FILE_NAME) -> Path:
     """
-    Initializes a new resume Markdown file.
+    Initializes a new resume Markdown file in a folder (file and folder have same name).
      Rendering needs assets: they are copied into the `resume_builder_files` folder next to it.
     Args:
-        target_dir (Path): The directory where the resume file will be created.
-        filename (str): The name of the resume file to create.
-        force (bool): Whether to overwrite an existing file.
+        path (str | Path): Used both as a name folder or as a filename (with '.md' extension or not).
+    Returns:
+        Path: The path of the markdown file on the disk.
+    Raises:
+        ValueError: If path has an extension other than '.md'.
+        FileExistsError: If the directory already exists (even empty).
+    Examples:
+        >>> init_resume()  # resume/resume.md
+        >>> init_resume("cvs/jane")  # cvs/jane/jane.md, assets in cvs/jane/resume_builder_files/
     """
-    dir_init = target_dir / INIT_FOLDER_NAME
-    dir_init.mkdir(parents=True, exist_ok=True)
-    resume_path = dir_init / filename
+    md_path = Path(path)
+    if md_path.suffix not in ("", ".md"):
+        raise ValueError("Only '.md' extension is accepted")
 
-    if resume_path.exists() and not force:
-        raise FileExistsError(f"{resume_path} already exists — pass force=True to overwrite")
+    name = md_path.stem if md_path.suffix == ".md" else md_path.name
+    output_dir = md_path.parent / name
+    md_path = output_dir / f"{name}.md"
 
-    _write_model_to_markdown(DEFAULT_RESUME, resume_path)
+    output_dir.mkdir(parents=True, exist_ok=False)
+
+    _write_model_to_markdown(DEFAULT_RESUME, md_path)
 
     # copy on disk all files needed for rendering
-    dir_assets = dir_init / ASSETS_FOLDER_NAME
-    dir_assets.mkdir(parents=True, exist_ok=True)
+    dir_assets = output_dir / ASSETS_FOLDER_NAME
+    dir_assets.mkdir(parents=True, exist_ok=False)
 
     files = [ASSET_CSS_USER_FILE_NAME, ASSET_CSS_BUILTIN_FILE_NAME, ASSET_JS_BUILTIN_FILE_NAME]
     for asset_name in files:
         shutil.copy(RESOURCE_ASSETS_PATH / asset_name, dir_assets)
-    return resume_path
+    return md_path

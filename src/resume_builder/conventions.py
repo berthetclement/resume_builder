@@ -57,7 +57,6 @@ ASSETS_FOLDER_NAME = "resume_builder_files"
 ASSET_CSS_USER_FILE_NAME = "theme.css"
 ASSET_CSS_BUILTIN_FILE_NAME = "resume.css"
 ASSET_JS_BUILTIN_FILE_NAME = "paged.polyfill.min.js"
-INIT_FOLDER_NAME = "resume_builder_template"
 
 # not Path objects so they do not depend on the OS path separator
 PATH_CSS_BUILTIN = ASSETS_FOLDER_NAME + "/" + ASSET_CSS_BUILTIN_FILE_NAME

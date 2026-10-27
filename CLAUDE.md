@@ -257,9 +257,15 @@ the browser resolves it against the HTML file, not against the working directory
 Writing the HTML anywhere else would break every link, silently. `render_pdf(md_path)`
 follows the same rule: the PDF lands next to the `.md` too.
 
-`init_resume()` copies the bundled assets into `resume_builder_files/` beside the `.md`
-(`force=True` overwrites every file of the same name, `theme.css` included). The page
-never points into the installed package: it depends only on what sits next to it.
+`init_resume(path)` creates **one folder per resume**, like
+`rmarkdown::draft(create_dir = TRUE)`: the last part of `path` (a trailing `.md` is
+dropped) names both the folder and the `.md` inside it, so `init_resume("cvs/jane")`
+writes `cvs/jane/jane.md`, and the bundled assets go into `cvs/jane/resume_builder_files/`.
+If `path` already exists, even as an empty folder, it raises `FileExistsError` before
+writing anything. There is no `force`: a folder the user has started editing, a
+customised `theme.css` above all, is never touched. Starting over means deleting the
+folder by hand. The page never points into the installed package: it depends only on
+what sits next to it.
 
 Load order in the page, fixed by the renderer:
 

@@ -148,7 +148,8 @@ def test_render_puts_the_markdown_body_in_the_page(tmp_path: Path) -> None:
 
 def test_init_then_render_produces_a_complete_page(tmp_path: Path) -> None:
     # given
-    md_path = init_resume(target_dir=tmp_path / "my-resume", force=True)
+    test_path = tmp_path / "my-resume"
+    md_path = init_resume(path=test_path)
 
     # when
     output_path = render_resume(md_path)

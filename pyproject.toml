@@ -14,9 +14,6 @@ dependencies = [
     "pyyaml>=6.0.3",
 ]
 
-[project.scripts]
-resume-builder = "resume_builder:main"
-
 [project.optional-dependencies]
 pdf = [
     "playwright>=1.64.0",

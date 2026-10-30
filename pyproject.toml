@@ -4,7 +4,7 @@ dynamic = ["version"]
 description = "Add your description here"
 readme = "README.md"
 authors = [
-    { name = "clement", email = "clement.berthet013@gmail.com" }
+    { name = "clement", email = "cberthet.contact@gmail.com" }
 ]
 requires-python = ">=3.11"
 dependencies = [
@@ -13,9 +13,6 @@ dependencies = [
     "pydantic>=2.13.4",
     "pyyaml>=6.0.3",
 ]
-
-[project.scripts]
-resume-builder = "resume_builder:main"
 
 [project.optional-dependencies]
 pdf = [
@@ -67,6 +64,7 @@ warn_unreachable = true
 enable_error_code = ["explicit-override", "deprecated"]
 
 [tool.pytest.ini_options]
+testpaths = ["tests"]
 markers = ["pdf: needs Playwright + Chromium"]
 
 [tool.tox]

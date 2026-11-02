@@ -53,7 +53,7 @@ def build_parser() -> MarkdownIt:
     )
 
 
-def render_resume(md_path: Path) -> Path:
+def render_resume(md_path: str | Path) -> Path:
     """Render a Markdown resume file into a standalone HTML file.
 
     Reads an optional YAML frontmatter block from `md_path` for
@@ -73,6 +73,7 @@ def render_resume(md_path: Path) -> Path:
         ValueError: `md_path` is empty, or its frontmatter is not a mapping,
             or its `css` entry is neither a string nor a list.
     """
+    md_path = Path(md_path)
     if not md_path.is_file():
         raise FileNotFoundError(f"{md_path} does not exist or is not a file")
 

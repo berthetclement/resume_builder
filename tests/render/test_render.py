@@ -1,4 +1,5 @@
 import re
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -46,13 +47,14 @@ def test_render_rejects_a_nested_asset_value(tmp_path: Path) -> None:
         render_resume(md_path)
 
 
-def test_render_writes_html_next_to_md_with_same_name(tmp_path: Path) -> None:
+@pytest.mark.parametrize("as_input", [str, Path])
+def test_render_writes_html_next_to_md_with_same_name(tmp_path: Path, as_input: Callable[[Path], str | Path]) -> None:
     # given — not named "resume", so a hardcoded "resume.html" cannot pass
     md_path = tmp_path / "cv.md"
     md_path.write_text("# Resume\n", encoding="utf-8")
 
     # when
-    output_path = render_resume(md_path)
+    output_path = render_resume(as_input(md_path))
 
     # then
     assert output_path.exists()

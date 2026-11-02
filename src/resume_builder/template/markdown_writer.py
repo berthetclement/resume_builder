@@ -95,12 +95,12 @@ def init_resume(path: str | Path = INIT_RESUME_FILE_NAME) -> Path:
         >>> init_resume()  # resume/resume.md
         >>> init_resume("cvs/jane")  # cvs/jane/jane.md, assets in cvs/jane/resume_builder_files/
     """
-    md_path = Path(path)
-    if md_path.suffix not in ("", ".md"):
+    path = Path(path)
+    if path.suffix not in ("", ".md"):
         raise ValueError("Only '.md' extension is accepted")
 
-    name = md_path.stem if md_path.suffix == ".md" else md_path.name
-    output_dir = md_path.parent / name
+    name = path.stem if path.suffix == ".md" else path.name
+    output_dir = path.parent / name
     md_path = output_dir / f"{name}.md"
 
     output_dir.mkdir(parents=True, exist_ok=False)

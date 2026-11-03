@@ -56,7 +56,7 @@ def _html_to_pdf(html_path: Path) -> Path:
     return output
 
 
-def render_pdf(md_path: Path) -> Path:
+def render_pdf(md_path: str | Path) -> Path:
     """Render a Markdown resume file into a paginated PDF.
 
     Renders the HTML with `render_resume()`, then prints it with Chromium once
@@ -78,6 +78,8 @@ def render_pdf(md_path: Path) -> Path:
     # raise error if optional dep are not installed
     if importlib.util.find_spec("playwright") is None:
         raise ImportError("render_pdf needs the [pdf] extra: pip install resume-builder[pdf]")
+
+    md_path = Path(md_path)
 
     # html processing
     html_file = render_resume(md_path)

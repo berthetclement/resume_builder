@@ -1,7 +1,7 @@
 [project]
 name = "resume-builder"
 dynamic = ["version"]
-description = "Add your description here"
+description = "Write your resume in Markdown, render it to paginated HTML and PDF"
 readme = "README.md"
 authors = [
     { name = "clement", email = "cberthet.contact@gmail.com" }

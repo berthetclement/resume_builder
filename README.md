@@ -78,8 +78,12 @@ resume/
     └── paged.polyfill.min.js  # pagination
 ```
 
-Edit `resume.md` to write your own resume, then render it again.
-To change colours and fonts, edit `theme.css` and enable it in the frontmatter of `resume.md`.
+Follow these steps to customize it to your needs:
+
+1. Edit `resume.md` with your content.
+2. Optional: to change colours and fonts, uncomment the `css` lines in the frontmatter
+   of `resume.md`, then edit `resume_builder_files/theme.css`.
+3. Save, then run `render_resume()` (or `render_pdf()`) again.
 
 > **Note:** open the HTML through a local server, not by double-clicking it:
 > paged.js cannot paginate a page opened as `file://`.

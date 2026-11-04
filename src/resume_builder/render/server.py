@@ -1,6 +1,6 @@
 import webbrowser
 from collections.abc import Generator
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -11,6 +11,9 @@ from resume_builder.render.renderer import render_resume
 
 # Loopback only: the served folder is never reachable from the network.
 _HOST = "127.0.0.1"
+
+# The running preview server, if any: entered in preview_resume(), exited in stop_preview().
+_PREVIEW = ExitStack()
 
 
 @contextmanager
@@ -44,10 +47,17 @@ def local_server(directory: Path) -> Generator[str, None, None]:
             server.shutdown()
 
 
-def preview_resume(md_path: str | Path) -> None:
-    """Open a local HTTP server from a folder and open the browser to it.
-    Then the function will rendering the resume from the Markdown file and serve it over HTTP.
-    The server will run until the user presses Enter."""
+def preview_resume(md_path: str | Path) -> str:
+    """Render a Markdown resume and preview it in the browser.
+
+    Serves the folder on 127.0.0.1 in the background and returns at once, so the
+    session stays usable: edit the `.md`, call `render_resume()`, refresh the page.
+    A new call replaces the previous preview; `stop_preview()` or quitting Python
+    stops it. Meant for interactive use: a script ends, and the server with it.
+
+    Returns:
+        str: the URL of the rendered page.
+    """
     # html processing
     html_file = render_resume(md_path)
 
@@ -56,8 +66,14 @@ def preview_resume(md_path: str | Path) -> None:
     if not internal_assets_dir.is_dir():
         raise NotADirectoryError(f"{internal_assets_dir} not found: run init_resume() first")
 
-    directory = html_file.parent
-    with local_server(directory) as url:
-        print(f"Serving {directory} at {url}")
-        webbrowser.open(f"{url}/{html_file.name}")
-        input("Press Enter to stop the server...")
+    _PREVIEW.close()  # stop the previous preview, if any
+    url = _PREVIEW.enter_context(local_server(html_file.parent))
+    page_url = f"{url}/{html_file.name}"
+    print(f"Previewing {html_file.name} at {page_url}")
+    webbrowser.open(page_url)
+    return page_url
+
+
+def stop_preview() -> None:
+    """Stop the preview server started by `preview_resume()`, if any."""
+    _PREVIEW.close()

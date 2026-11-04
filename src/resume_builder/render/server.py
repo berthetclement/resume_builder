@@ -1,9 +1,13 @@
+import webbrowser
 from collections.abc import Generator
 from contextlib import contextmanager
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import Thread
+
+from resume_builder.conventions import ASSETS_FOLDER_NAME
+from resume_builder.render.renderer import render_resume
 
 # Loopback only: the served folder is never reachable from the network.
 _HOST = "127.0.0.1"
@@ -38,3 +42,22 @@ def local_server(directory: Path) -> Generator[str, None, None]:
             # Runs when the caller's `with` body ends, normally or by an exception.
             # Stops the serve_forever() loop and waits for it to finish.
             server.shutdown()
+
+
+def preview_resume(md_path: str | Path) -> None:
+    """Open a local HTTP server from a folder and open the browser to it.
+    Then the function will rendering the resume from the Markdown file and serve it over HTTP.
+    The server will run until the user presses Enter."""
+    # html processing
+    html_file = render_resume(md_path)
+
+    # check the target is in the same folder as the source, and that the assets folder is present
+    internal_assets_dir = html_file.parent / ASSETS_FOLDER_NAME
+    if not internal_assets_dir.is_dir():
+        raise NotADirectoryError(f"{internal_assets_dir} not found: run init_resume() first")
+
+    directory = html_file.parent
+    with local_server(directory) as url:
+        print(f"Serving {directory} at {url}")
+        webbrowser.open(f"{url}/{html_file.name}")
+        input("Press Enter to stop the server...")

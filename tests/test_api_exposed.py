@@ -3,12 +3,7 @@ import resume_builder
 
 def test_public_api() -> None:
     # given
-    expected = {
-        "__version__",
-        "init_resume",
-        "render_resume",
-        "render_pdf",
-    }
+    expected = {"__version__", "init_resume", "render_resume", "render_pdf", "preview_resume"}
 
     # then
     assert set(resume_builder.__all__) == expected

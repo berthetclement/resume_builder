@@ -311,6 +311,19 @@ paged.js never touched, with no error. In order:
    background) and `prefer_css_page_size=True` (`@page` decides the format) are both
    load-bearing.
 
+`preview_resume(md_path)` (`render/server.py`) renders the HTML, serves its folder with
+`local_server()` and opens it with `webbrowser`, then **returns the page URL at once**:
+the server keeps running in its daemon thread, so the session stays free for the
+edit / `render_resume()` / refresh loop. It is non-blocking on purpose: a blocking
+version waiting on `input()` raised `EOFError` in the VS Code REPL, which has no stdin,
+and stopped the server before the page loaded. One preview at a time: the module-level
+`ExitStack` `_PREVIEW` holds it, every call `close()`s the previous one before entering
+the new `local_server()`, and `stop_preview()` is that same `close()`. Quitting Python
+stops it too. Interactive use only: a script exits, and its server with it. Like
+`render_pdf`, it raises `NotADirectoryError` when `resume_builder_files/` is missing.
+Tests never open a browser: they monkeypatch `webbrowser.open`, read the page with
+`urlopen`, and call `stop_preview()` in a `finally`, since `_PREVIEW` is shared state.
+
 pydantic appears only on the way *out*. Rendering never parses the user's edited
 Markdown back into a strict model — it walks the token stream directly, same as
 pagedown/Pandoc.

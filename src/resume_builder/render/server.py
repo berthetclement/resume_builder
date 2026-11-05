@@ -18,9 +18,13 @@ _PREVIEW = ExitStack()
 
 @contextmanager
 def local_server(directory: Path) -> Generator[str, None, None]:
-    """Serve local HTTP.
+    """Serve `directory` over HTTP on 127.0.0.1, on a free port.
 
-    Yields the base URL (`http://127.0.0.1:<port>`)
+    Yields:
+        str: the base URL, `http://127.0.0.1:<port>`.
+
+    Raises:
+        NotADirectoryError: `directory` does not exist.
     """
     if not directory.is_dir():
         raise NotADirectoryError(f"{directory} does not exist or is not a directory")
@@ -48,15 +52,25 @@ def local_server(directory: Path) -> Generator[str, None, None]:
 
 
 def preview_resume(md_path: str | Path) -> str:
-    """Render a Markdown resume and preview it in the browser.
+    """Render a Markdown resume and open it in the browser.
 
-    Serves the folder on 127.0.0.1 in the background and returns at once, so the
-    session stays usable: edit the `.md`, call `render_resume()`, refresh the page.
-    A new call replaces the previous preview; `stop_preview()` or quitting Python
-    stops it. Meant for interactive use: a script ends, and the server with it.
+    Returns at once; the server runs in the background until `stop_preview()`,
+    the next call, or the end of the Python session. For interactive use.
+
+    Args:
+        md_path: the `.md` file, with `resume_builder_files/` next to it.
 
     Returns:
-        str: the URL of the rendered page.
+        str: the URL of the page.
+
+    Raises:
+        FileNotFoundError: `md_path` does not exist.
+        ValueError: `md_path` is empty or its frontmatter is invalid.
+        NotADirectoryError: `resume_builder_files/` is missing.
+
+    Examples:
+        >>> preview_resume("resume/resume.md")
+        >>> stop_preview()
     """
     # html processing
     html_file = render_resume(md_path)
